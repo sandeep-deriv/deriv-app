@@ -1,4 +1,4 @@
-import { observable, action, computed } from 'mobx';
+import { observable, action, computed, when } from 'mobx';
 import { requestWS } from 'Utils/websocket';
 import { localize } from 'Components/i18next';
 import { textValidator } from 'Utils/validations';
@@ -23,7 +23,7 @@ export default class MyProfileStore extends BaseStore {
     @observable is_cancel_add_payment_method_modal_open = false;
     @observable is_cancel_edit_payment_method_modal_open = false;
     @observable is_confirm_delete_modal_open = false;
-    @observable is_delete_error_modal_open = false;
+    @observable is_delete_payment_method_error_modal_open = false;
     @observable is_loading = true;
     @observable is_submit_success = false;
     @observable payment_info = '';
@@ -66,9 +66,12 @@ export default class MyProfileStore extends BaseStore {
 
     @computed
     get payment_method_field_set() {
-        // The fields are rendered dynamically based on the response. This variable will hold a dictionary of field id and their name
+        // The fields are rendered dynamically based on the response. This variable will hold a dictionary of field id and its name/required properties
         return this.selected_payment_method_fields.reduce((dict, field_data) => {
-            return { ...dict, [field_data[0]]: field_data[1].display_name };
+            return {
+                ...dict,
+                [field_data[0]]: { display_name: field_data[1].display_name, required: field_data[1].required },
+            };
         }, {});
     }
 
@@ -77,9 +80,11 @@ export default class MyProfileStore extends BaseStore {
         const object = {};
 
         Object.values(this.selected_payment_method_fields).forEach(field => {
-            const filter = Object.entries(this.payment_method_info.fields).filter(
-                payment_method_field => payment_method_field[0] === field[0]
-            );
+            const filter = this.payment_method_info
+                ? Object.entries(this.payment_method_info.fields).filter(
+                      payment_method_field => payment_method_field[0] === field[0]
+                  )
+                : {};
 
             if (Object.values(filter).length > 0) {
                 object[field[0]] = Object.values(filter)[0][1].value;
@@ -93,7 +98,7 @@ export default class MyProfileStore extends BaseStore {
 
     @computed
     get payment_method_info() {
-        return this.advertiser_payment_methods_list.filter(method => method.ID === this.payment_method_to_edit.ID)[0];
+        return this.advertiser_payment_methods_list.filter(method => method.ID === this.payment_method_to_edit?.ID)[0];
     }
 
     @computed
@@ -116,7 +121,7 @@ export default class MyProfileStore extends BaseStore {
                 if (key[1].method === 'other' || key[1].method === 'bank_transfer') {
                     methods.push({ method: key[1].method, display_name: key[1].display_name });
                 } else if (methods.every(e => e.method !== 'e_wallet')) {
-                    methods.push({ method: 'e_wallet', display_name: 'E-wallet' });
+                    methods.push({ method: 'e_wallet', display_name: localize('E-wallet') });
                 }
             }
         });
@@ -345,13 +350,16 @@ export default class MyProfileStore extends BaseStore {
         requestWS({
             p2p_advertiser_payment_methods: 1,
             delete: [this.payment_method_to_delete.ID],
-        }).then(response => {
+        }).then(async response => {
             this.setIsConfirmDeleteModalOpen(false);
             if (!response.error) {
                 this.getAdvertiserPaymentMethods();
             } else {
                 this.setDeleteErrorMessage(response.error.message);
-                this.setIsDeleteErrorModalOpen(true);
+                await when(
+                    () => !this.root_store.general_store.is_modal_open,
+                    () => this.setIsDeletePaymentMethodErrorModalOpen(true)
+                );
             }
         });
     }
@@ -421,6 +429,37 @@ export default class MyProfileStore extends BaseStore {
                         break;
                     }
                 }
+            }
+        });
+
+        return errors;
+    };
+
+    @action.bound
+    validatePaymentMethodFields = values => {
+        const errors = {};
+        const no_symbols_regex = /^[a-zA-Z0-9\s\-.@_+#(),:;']+$/;
+
+        Object.keys(values).forEach(key => {
+            const value = values[key];
+            const payment_method_field_set = this.payment_method_field_set[key];
+            const { display_name, required } = payment_method_field_set;
+
+            if (required && !value) {
+                errors[key] = localize('This field is required.');
+            } else if (value && !no_symbols_regex.test(value)) {
+                errors[key] = localize(
+                    "{{field_name}} can only include letters, numbers, spaces, and any of these symbols: -+.,'#@():;",
+                    {
+                        field_name: display_name,
+                        interpolation: { escapeValue: false },
+                    }
+                );
+            } else if (value.length > 200) {
+                errors[key] = localize('{{field_name}} has exceeded maximum length of 200 characters.', {
+                    field_name: display_name,
+                    interpolation: { escapeValue: false },
+                });
             }
         });
 
@@ -508,8 +547,8 @@ export default class MyProfileStore extends BaseStore {
     }
 
     @action.bound
-    setIsDeleteErrorModalOpen(is_delete_error_modal_open) {
-        this.is_delete_error_modal_open = is_delete_error_modal_open;
+    setIsDeletePaymentMethodErrorModalOpen(is_delete_payment_method_error_modal_open) {
+        this.is_delete_payment_method_error_modal_open = is_delete_payment_method_error_modal_open;
     }
 
     @action.bound

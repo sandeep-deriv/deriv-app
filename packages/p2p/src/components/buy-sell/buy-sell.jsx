@@ -3,9 +3,9 @@ import { useSafeState } from '@deriv/components';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react-lite';
 import { localize } from 'Components/i18next';
-import AdvertiserPage from 'Components/advertiser-page/advertiser-page.jsx';
 import PageReturn from 'Components/page-return/page-return.jsx';
 import Verification from 'Components/verification/verification.jsx';
+import RateChangeModal from 'Components/buy-sell/rate-change-modal.jsx';
 import { buy_sell } from 'Constants/buy-sell';
 import { useStores } from 'Stores';
 import BuySellHeader from './buy-sell-header.jsx';
@@ -50,14 +50,6 @@ const BuySell = () => {
         );
     }
 
-    if (buy_sell_store.show_advertiser_page && !buy_sell_store.should_show_verification) {
-        return (
-            <React.Fragment>
-                <AdvertiserPage />
-            </React.Fragment>
-        );
-    }
-
     return (
         <div className='buy-sell'>
             <FilterModal />
@@ -79,6 +71,7 @@ const BuySell = () => {
                 setShouldShowPopup={buy_sell_store.setShouldShowPopup}
                 table_type={buy_sell_store.table_type}
             />
+            <RateChangeModal onMount={buy_sell_store.setShouldShowPopup} />
         </div>
     );
 };

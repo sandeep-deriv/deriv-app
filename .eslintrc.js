@@ -15,6 +15,7 @@ module.exports = {
         dataLayer: true,
         texts_json: false,
     },
+    ignorePatterns: ['**/dist/**/*.js', '**/lib/**/*.js'],
     rules: {
         camelcase: 0,
         // semi                                : ['error', 'always'],
@@ -60,6 +61,10 @@ module.exports = {
                     '**/*.test.js*',
                     '**/*.spec.js',
                     '**/*.spec.jsx',
+                    '**/*.spec.ts',
+                    '**/*.test.ts',
+                    '**/*.spec.tsx',
+                    '**/*.test.tsx',
                 ],
             },
         ],
@@ -72,8 +77,9 @@ module.exports = {
                 'newlines-between': 'ignore',
             },
         ],
+        'spaced-comment': 'off',
         'import/prefer-default-export': 0,
-        'import/extensions': ['warn', 'never', { jsx: 'always', json: 'always' }],
+        'import/extensions': [0, { jsx: 'always', json: 'always' }],
         'no-sequences': ['warn'],
         'import/no-unresolved': [2, { ignore: ['@deriv/components', '@deriv/shared'] }],
 
@@ -86,7 +92,12 @@ module.exports = {
         // 'react/jsx-indent-props'            : ['error', 4],
         // 'react/jsx-max-props-per-line'      : ['error', { when: 'multiline' }],
         // 'react/jsx-tag-spacing'             : ['error', { closingSlash: 'never', beforeSelfClosing: 'always' }],
-        'react/prop-types': 0,
+        'react/prop-types': [
+            1,
+            {
+                skipUndeclared: true,
+            },
+        ],
         'react/self-closing-comp': 'error',
         // 'react/sort-prop-types'             : ['error', { ignoreCase: true, sortShapeProp: true }],
     },
@@ -166,6 +177,12 @@ module.exports = {
             settings: {
                 react: {
                     version: 'detect',
+                },
+                'import/resolver': {
+                    node: {
+                        extensions: ['.ts', '.tsx'],
+                        moduleDirectory: ['src', 'node_modules'],
+                    },
                 },
             },
         },

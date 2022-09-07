@@ -1,4 +1,3 @@
-import { PropTypes as MobxPropTypes } from 'mobx-react';
 import { toJS } from 'mobx';
 import PropTypes from 'prop-types';
 import React from 'react';
@@ -13,6 +12,12 @@ const PaymentAgentDeposit = ({ onChangePaymentMethod, payment_agent_list, select
         { text: <Localize i18n_default_text='All payment agents' />, value: 0 },
         ...supported_banks,
     ];
+
+    React.useEffect(() => {
+        return () => {
+            onChangePaymentMethod({ target: { value: '0' } });
+        };
+    }, [onChangePaymentMethod]);
 
     return (
         <React.Fragment>
@@ -44,7 +49,7 @@ const PaymentAgentDeposit = ({ onChangePaymentMethod, payment_agent_list, select
                         </DesktopWrapper>
                         <MobileWrapper>
                             <SelectNative
-                                placeholder={localize('Please select')}
+                                placeholder={localize('All payment agents')}
                                 name='payment_methods'
                                 list_items={supported_banks}
                                 value={selected_bank === 0 ? '' : selected_bank.toString()}
@@ -84,7 +89,7 @@ PaymentAgentDeposit.propTypes = {
     onChangePaymentMethod: PropTypes.func,
     payment_agent_list: PropTypes.array,
     selected_bank: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    supported_banks: MobxPropTypes.arrayOrObservableArray,
+    supported_banks: PropTypes.any,
 };
 
 export default connect(({ modules }) => ({
