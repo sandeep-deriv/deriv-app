@@ -20,6 +20,17 @@ const BotBuilder = ({ app, active_tab }: TBotBuilder) => {
         return () => onUnmount();
     }, []);
 
+    // TODO: temporary method, we should remove these
+    // just for reference
+    // below it explains how we can make the block center for mobile onboarding tours.
+    const makeCenter = (type: string) => {
+        const blocks: { [k: string]: any } = {};
+        Blockly?.derivWorkspace?.getTopBlocks().forEach(b => {
+            blocks[b.type] = b.id;
+        });
+        Blockly.derivWorkspace.centerOnBlock(blocks[type]);
+    };
+
     return (
         <>
             <div className={classNames('bot-builder', { 'bot-builder--active': active_tab === 1 })}>
@@ -48,6 +59,13 @@ const BotBuilder = ({ app, active_tab }: TBotBuilder) => {
                             }}
                         />
                     )}
+                </div>
+                {/* TODO: temporary elements just for reference  */}
+                <div className='temp-buttons'>
+                    <button onClick={() => makeCenter('trade_definition')}>trade</button>
+                    <button onClick={() => makeCenter('before_purchase')}>purchase</button>
+                    <button onClick={() => makeCenter('during_purchase')}>sell</button>
+                    <button onClick={() => makeCenter('after_purchase')}>restart</button>
                 </div>
             </div>
         </>
