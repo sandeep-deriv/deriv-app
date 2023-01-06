@@ -53,9 +53,13 @@ class APIBase {
             this.token = token;
             this.account_id = account_id;
             this.getActiveSymbols();
+
+            performance.mark('authorize_start');
             this.api
                 .authorize(this.token)
                 .then(({ authorize }) => {
+                    performance.mark('authorize_end');
+                    performance.measure('authorize', 'authorize_start', 'authorize_end');
                     this.subscribe();
                     this.account_info = authorize;
                 })
@@ -66,18 +70,27 @@ class APIBase {
     }
 
     subscribe() {
+        performance.mark('balance_start');
         this.api.send({ balance: 1, subscribe: 1 }).catch(e => {
+            performance.mark('balance_end');
+            performance.measure('balance', 'balance_start', 'balance_end');
             globalObserver.emit('Error', e);
         });
+        performance.mark('transaction_start');
         this.api.send({ transaction: 1, subscribe: 1 }).catch(e => {
+            performance.mark('transaction_end');
+            performance.measure('transaction', 'transaction_start', 'transaction_end');
             globalObserver.emit('Error', e);
         });
     }
 
     getActiveSymbols = async () => {
+        performance.mark('active_symbols_start');
         const { active_symbols = [] } = await this.api.send({ active_symbols: 'brief' }).catch(e => {
             globalObserver.emit('Error', e);
         });
+        performance.mark('active_symbols_end');
+        performance.measure('active_symbols', 'active_symbols_start', 'active_symbols_end');
         const pip_sizes = {};
         active_symbols.forEach(({ symbol, pip }) => {
             pip_sizes[symbol] = +(+pip).toExponential().substring(3);
@@ -108,7 +121,11 @@ class APIBase {
     getTime() {
         if (!this.time_interval) {
             this.time_interval = setInterval(() => {
-                this.api.send({ time: 1 });
+                performance.mark('time_api_start');
+                this.api.send({ time: 1 }).then(() => {
+                    performance.mark('time_api_end');
+                    performance.measure('time_api', 'time_api_start', 'time_api_end');
+                });
             }, 30000);
         }
     }

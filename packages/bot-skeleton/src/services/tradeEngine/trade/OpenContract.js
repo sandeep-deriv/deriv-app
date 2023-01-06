@@ -58,9 +58,11 @@ export default Engine =>
                 contract_id,
                 subscribe: 1,
             };
-
+            performance.mark('poc_subscribe_start');
             doUntilDone(() => api_base.api.send(request_object))
                 .then(data => {
+                    performance.mark('poc_subscribe_end');
+                    performance.measure('poc_subscribe', 'poc_subscribe_start', 'poc_subscribe_end');
                     const { populateConfig } = DBotStore.instance;
                     populateConfig(data.proposal_open_contract);
                     this.openContractId = data.proposal_open_contract.id;

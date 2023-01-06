@@ -249,8 +249,11 @@ export default class TicksService {
             style,
         };
         return new Promise((resolve, reject) => {
+            performance.mark('ticks_history_start');
             doUntilDone(() => api_base.api.send(request_object), [], api_base)
                 .then(r => {
+                    performance.mark('ticks_history_end');
+                    performance.measure('ticks_history', 'ticks_history_start', 'ticks_history_end');
                     if (style === 'ticks') {
                         const ticks = historyToTicks(r.history);
 

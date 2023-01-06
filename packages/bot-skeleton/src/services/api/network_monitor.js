@@ -19,7 +19,10 @@ export default class NetworkMonitor {
     setStatus() {
         if (navigator.onLine) {
             this.parentElement.html("<span class='connecting'></span>");
+            performance.mark('ping_start');
             this.api.send({ ping: '1' }).then(() => {
+                performance.mark('ping_end');
+                performance.measure('ping', 'ping_start', 'ping_end');
                 this.parentElement.html("<span class='online'></span>");
             });
         } else {

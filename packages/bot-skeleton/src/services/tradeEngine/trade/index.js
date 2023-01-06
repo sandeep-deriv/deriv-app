@@ -119,9 +119,17 @@ export default class TradeEngine extends Balance(Purchase(Sell(OpenContract(Prop
                         const is_same_contract = contract.contract_id === data.transaction.contract_id;
                         const is_open_contract = contract.status === 'open';
                         if (is_same_contract && is_open_contract) {
+                            performance.mark('proposal_open_contract_start');
                             doUntilDone(() => {
                                 api_base.api.send({ proposal_open_contract: 1, contract_id: contract.contract_id });
-                            }, ['PriceMoved']);
+                            }, ['PriceMoved']).then(() => {
+                                performance.mark('proposal_open_contract_end');
+                                performance.measure(
+                                    'proposal_open_contract',
+                                    'proposal_open_contract_start',
+                                    'proposal_open_contract_end'
+                                );
+                            });
                         }
                     }, 1500);
                 }
