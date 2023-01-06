@@ -14,7 +14,7 @@ class APIBase {
     init(force_update = false) {
         if (getLoginId()) {
             this.toggleRunButton(true);
-            if (force_update && this.api) this.api.disconnect();
+            if (force_update) this.terminate();
             this.api = generateDerivApiInstance();
             this.initEventListeners();
             this.authorizeAndSubscribe();
@@ -22,6 +22,10 @@ class APIBase {
             this.time_interval = null;
             this.getTime();
         }
+    }
+
+    terminate() {
+        if (this.api) this.api.disconnect();
     }
 
     initEventListeners() {
