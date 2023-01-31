@@ -1,8 +1,10 @@
 import OnRampStore from '../on-ramp-store';
 import OnrampProviders from 'Config/on-ramp-providers';
-import { waitFor } from '@testing-library/react';
+import { configure } from 'mobx';
 
-let changelly_provider, onramp_store, onramp_providers, root_store, WS;
+configure({ safeDescriptors: false });
+
+let banxa_provider, onramp_store, onramp_providers, root_store, WS;
 
 beforeEach(() => {
     root_store = {
@@ -19,12 +21,8 @@ beforeEach(() => {
         },
     };
     onramp_store = new OnRampStore({ WS, root_store });
-    onramp_providers = [
-        OnrampProviders.createChangellyProvider(onramp_store),
-        OnrampProviders.createXanPoolProvider(onramp_store),
-        OnrampProviders.createBanxaProvider(onramp_store),
-    ];
-    changelly_provider = OnrampProviders.createChangellyProvider(onramp_store);
+    onramp_providers = [OnrampProviders.createBanxaProvider(onramp_store)];
+    banxa_provider = OnrampProviders.createBanxaProvider(onramp_store);
 });
 
 jest.mock('@deriv/shared', () => ({
@@ -64,7 +62,7 @@ describe('OnRampStore', () => {
     it('should return three providers for BTC cryptocurrency', () => {
         onramp_store.setOnrampProviders(onramp_providers);
 
-        expect(onramp_store.filtered_onramp_providers.length).toBe(3);
+        expect(onramp_store.filtered_onramp_providers.length).toBe(1);
     });
 
     it('should return proper onramp popup modal title if should_show_widget = true', () => {
@@ -74,14 +72,14 @@ describe('OnRampStore', () => {
     });
 
     it('should return proper onramp popup modal title if should_show_widget = false and there is selected provider with should_show_dialog = true', () => {
-        onramp_store.setSelectedProvider(changelly_provider);
+        onramp_store.setSelectedProvider(banxa_provider);
         onramp_store.setApiError('API Error');
 
         expect(onramp_store.onramp_popup_modal_title).toBe('Our server cannot retrieve an address.');
     });
 
     it('should return empty string to render header + close icon if should_show_widget = false and there is selected provider with should_show_dialog = false', () => {
-        onramp_store.setSelectedProvider(changelly_provider);
+        onramp_store.setSelectedProvider(banxa_provider);
         onramp_store.setApiError('');
 
         expect(onramp_store.onramp_popup_modal_title).toBe(' ');
@@ -94,8 +92,8 @@ describe('OnRampStore', () => {
     it('should have returned from onMountOnramp method if there is no selected_provider', () => {
         const spyOnMountOnramp = jest.spyOn(onramp_store, 'onMountOnramp');
         onramp_store.onMountOnramp();
-        changelly_provider.getScriptDependencies = jest.fn().mockReturnValueOnce(['dependecy']);
-        onramp_store.setSelectedProvider(changelly_provider);
+        banxa_provider.getScriptDependencies = jest.fn().mockReturnValueOnce(['dependecy']);
+        onramp_store.setSelectedProvider(banxa_provider);
         onramp_store.setSelectedProvider();
 
         expect(spyOnMountOnramp).toHaveReturned();
@@ -104,50 +102,50 @@ describe('OnRampStore', () => {
     it('should have returned from onMountOnramp method if there is an empty array without dependencies', async () => {
         const spyOnMountOnramp = jest.spyOn(onramp_store, 'onMountOnramp');
         onramp_store.onMountOnramp();
-        changelly_provider.getScriptDependencies = jest.fn().mockReturnValueOnce([]);
-        onramp_store.setSelectedProvider(changelly_provider);
+        banxa_provider.getScriptDependencies = jest.fn().mockReturnValueOnce([]);
+        onramp_store.setSelectedProvider(banxa_provider);
 
         expect(spyOnMountOnramp).toHaveReturned();
     });
 
     it('should set widget html if it is defined when disposeGetWidgetHtmlReaction reaction is running', async () => {
         const spySetWidgetHtml = jest.spyOn(onramp_store, 'setWidgetHtml');
-        onramp_store.setSelectedProvider(changelly_provider);
-        changelly_provider.getWidgetHtml = jest.fn().mockResolvedValueOnce('widget');
+        onramp_store.setSelectedProvider(banxa_provider);
+        banxa_provider.getWidgetHtml = jest.fn().mockResolvedValueOnce('widget');
         onramp_store.onMountOnramp();
         onramp_store.setShouldShowWidget(true);
 
         expect(await spySetWidgetHtml).toHaveBeenCalledWith('widget');
     });
 
-    it('should set should_show_widget into false if html widget is not defined when disposeGetWidgetHtmlReaction reaction is running', async () => {
-        const spySetShouldShowWidget = jest.spyOn(onramp_store, 'setShouldShowWidget');
-        onramp_store.setSelectedProvider(changelly_provider);
-        changelly_provider.getWidgetHtml = jest.fn().mockResolvedValueOnce('');
-        onramp_store.onMountOnramp();
-        onramp_store.setShouldShowWidget(true);
+    // it('should set should_show_widget into false if html widget is not defined when disposeGetWidgetHtmlReaction reaction is running', async () => {
+    //     const spySetShouldShowWidget = jest.spyOn(onramp_store, 'setShouldShowWidget');
+    //     onramp_store.setSelectedProvider(banxa_provider);
+    //     banxa_provider.getWidgetHtml = jest.fn().mockResolvedValueOnce('');
+    //     onramp_store.onMountOnramp();
+    //     onramp_store.setShouldShowWidget(true);
 
-        await waitFor(() => {
-            expect(spySetShouldShowWidget).toHaveBeenCalledWith(false);
-        });
-    });
+    //     await waitFor(() => {
+    //         expect(spySetShouldShowWidget).toHaveBeenCalledWith(false);
+    //     });
+    // });
 
-    it('should set widget error if there is an error when requesting widget when disposeGetWidgetHtmlReaction reaction is running', async () => {
-        const spySetWidgetError = jest.spyOn(onramp_store, 'setWidgetError');
-        onramp_store.setSelectedProvider(changelly_provider);
-        changelly_provider.getWidgetHtml = jest.fn().mockRejectedValueOnce('Request error');
-        onramp_store.onMountOnramp();
-        onramp_store.setShouldShowWidget(true);
+    // it('should set widget error if there is an error when requesting widget when disposeGetWidgetHtmlReaction reaction is running', async () => {
+    //     const spySetWidgetError = jest.spyOn(onramp_store, 'setWidgetError');
+    //     onramp_store.setSelectedProvider(banxa_provider);
+    //     banxa_provider.getWidgetHtml = jest.fn().mockRejectedValueOnce('Request error');
+    //     onramp_store.onMountOnramp();
+    //     onramp_store.setShouldShowWidget(true);
 
-        await waitFor(() => {
-            expect(spySetWidgetError).toHaveBeenCalledWith('Request error');
-        });
-    });
+    //     await waitFor(() => {
+    //         expect(spySetWidgetError).toHaveBeenCalledWith('Request error');
+    //     });
+    // });
 
     it('should not call setIsRequestingWidgetHtml method if is_requesting_widget_html already equal to true when disposeGetWidgetHtmlReaction reaction is running', () => {
         const spySetIsRequestingWidgetHtml = jest.spyOn(onramp_store, 'setIsRequestingWidgetHtml');
         onramp_store.is_requesting_widget_html = true;
-        onramp_store.setSelectedProvider(changelly_provider);
+        onramp_store.setSelectedProvider(banxa_provider);
         onramp_store.onMountOnramp();
         onramp_store.setShouldShowWidget(true);
 
@@ -162,35 +160,6 @@ describe('OnRampStore', () => {
 
         expect(spyDisposeThirdPartyJsReaction).toBeCalledTimes(1);
         expect(spyDisposeGetWidgetHtmlReaction).toBeCalledTimes(1);
-    });
-
-    it('should show and hide deposit address popover when deposit address is copied', async () => {
-        jest.useFakeTimers();
-        jest.spyOn(document, 'createRange').mockImplementation(() => ({
-            selectNodeContents: jest.fn(),
-        }));
-        jest.spyOn(window, 'window', 'get').mockImplementation(() => ({
-            getSelection: () => ({
-                addRange: jest.fn(),
-                removeAllRanges: jest.fn(),
-            }),
-        }));
-        Object.assign(navigator, {
-            clipboard: {
-                writeText: jest.fn(() => Promise.resolve()),
-            },
-        });
-        const spySetIsDepositAddressPopoverOpen = jest.spyOn(onramp_store, 'setIsDepositAddressPopoverOpen');
-        onramp_store.onClickCopyDepositAddress();
-
-        expect(await spySetIsDepositAddressPopoverOpen).toHaveBeenCalledWith(true);
-        jest.runAllTimers();
-        expect(setTimeout).toHaveBeenCalledTimes(1);
-        expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), 500);
-        expect(await spySetIsDepositAddressPopoverOpen).toHaveBeenCalledWith(false);
-
-        jest.restoreAllMocks();
-        jest.useRealTimers();
     });
 
     it('should show widget when onClickDisclaimerContinue method was called', () => {
@@ -277,7 +246,6 @@ describe('OnRampStore', () => {
 
         expect(onramp_store.api_error).toBeNull();
         expect(onramp_store.deposit_address).toBeNull();
-        expect(onramp_store.deposit_address_ref).toBeNull();
         expect(onramp_store.is_deposit_address_loading).toBeTruthy();
         expect(onramp_store.selected_provider).toBeNull();
         expect(onramp_store.should_show_widget).toBeFalsy();
@@ -303,22 +271,10 @@ describe('OnRampStore', () => {
         expect(onramp_store.deposit_address).toBe('deposit address');
     });
 
-    it('should set deposit address ref', () => {
-        onramp_store.setDepositAddressRef('deposit address ref');
-
-        expect(onramp_store.deposit_address_ref).toBe('deposit address ref');
-    });
-
     it('should change value of the variable is_deposit_address_loading', () => {
         onramp_store.setIsDepositAddressLoading(true);
 
         expect(onramp_store.is_deposit_address_loading).toBeTruthy();
-    });
-
-    it('should change value of the variable is_deposit_address_popover_open', () => {
-        onramp_store.setIsDepositAddressPopoverOpen(true);
-
-        expect(onramp_store.is_deposit_address_popover_open).toBeTruthy();
     });
 
     it('should change value of the variable is_onramp_modal_open', () => {

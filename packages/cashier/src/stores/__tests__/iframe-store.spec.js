@@ -1,4 +1,7 @@
 import IframeStore from '../iframe-store';
+import { configure } from 'mobx';
+
+configure({ safeDescriptors: false });
 
 let iframe_store, root_store, WS;
 
@@ -21,7 +24,7 @@ beforeEach(() => {
             is_mobile: false,
         },
     };
-    iframe_store = new IframeStore({ WS, root_store });
+    iframe_store = new IframeStore(root_store);
 });
 
 describe('IframeStore', () => {
@@ -39,7 +42,7 @@ describe('IframeStore', () => {
         iframe_store.removeOnIframeLoaded();
 
         expect(removeEventListener).toHaveBeenCalledWith('message', expect.any(Function), false);
-        expect(iframe_store.onIframeLoaded).toBe('');
+        expect(iframe_store.onIframeLoaded).toBe(null);
     });
 
     it('should clear timeout cashier url', () => {
@@ -57,7 +60,7 @@ describe('IframeStore', () => {
 
         const spyClearTimeoutCashierUrl = jest.spyOn(iframe_store, 'clearTimeoutCashierUrl');
         const spySetSessionTimeout = jest.spyOn(iframe_store, 'setSessionTimeout');
-        iframe_store.setTimeoutCashierUrl();
+        iframe_store.setTimeoutCashierUrl(true);
 
         expect(spyClearTimeoutCashierUrl).toHaveBeenCalledTimes(1);
         jest.runAllTimers();
@@ -108,7 +111,7 @@ describe('IframeStore', () => {
     it('should set proper iframe_height for desktop and mobile view', async () => {
         const spyRemoveOnIframeLoaded = jest.spyOn(iframe_store, 'removeOnIframeLoaded');
 
-        expect(iframe_store.onIframeLoaded).toBe('');
+        expect(iframe_store.onIframeLoaded).toBe(null);
 
         await iframe_store.checkIframeLoaded();
 
