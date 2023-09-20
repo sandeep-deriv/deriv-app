@@ -4,6 +4,7 @@ import { DesktopWrapper, MobileWrapper } from '@deriv/components';
 import { observer } from '@deriv/stores';
 import { useDBotStore } from '../../../stores/useDBotStore';
 import LoadModal from '../../load-modal';
+import QuickStrategy1 from '../../quick-strategy';
 import SaveModal from '../dashboard-component/load-bot-preview/save-modal';
 import { BOT_BUILDER_TOUR } from '../joyride-config';
 import QuickStrategy from '../quick-strategy';
@@ -72,6 +73,7 @@ const BotBuilder = observer(() => {
             <LoadModal />
             <SaveModal />
             <QuickStrategy />
+            <QuickStrategy1 />
         </>
     );
 });
