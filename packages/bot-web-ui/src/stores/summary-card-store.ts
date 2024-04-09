@@ -1,8 +1,7 @@
 import { action, computed, makeObservable, observable, reaction } from 'mobx';
-import { UpdateContractResponse } from '@deriv/api-types';
+import { ProposalOpenContract, UpdateContractResponse } from '@deriv/api-types';
 import { getIndicativePrice, isEqualObject, isMultiplierContract, Validator } from '@deriv/shared';
 import { TStores } from '@deriv/stores/types';
-import { TContractInfo } from 'Components/summary/summary-card.types';
 import { getValidationRules } from 'Constants/contract';
 import { contract_stages } from 'Constants/contract-stage';
 import { getContractUpdateConfig } from 'Utils/multiplier';
@@ -15,7 +14,7 @@ type TLimitOrder = {
 };
 
 interface ISummaryCardStore {
-    contract_info: TContractInfo | null;
+    contract_info: ProposalOpenContract | null;
     indicative_movement: string;
     profit_movement: string;
     contract_update_take_profit: string | number | null;
@@ -29,10 +28,11 @@ interface ISummaryCardStore {
     is_contract_loading: boolean;
     is_contract_inactive: boolean;
     is_multiplier: boolean;
+    is_loading: boolean;
     clear: (should_unset_contract?: boolean) => void;
     clearContractUpdateConfigValues: () => void;
     getLimitOrder: () => TLimitOrder;
-    onBotContractEvent: (contract: TContractInfo) => void;
+    onBotContractEvent: (contract: ProposalOpenContract) => void;
     onChange: (params: { name: string; value: string }) => void;
     populateContractUpdateConfig: (response: { error?: TServerError } & UpdateContractResponse) => void;
     setContractUpdateConfig: (
@@ -41,9 +41,19 @@ interface ISummaryCardStore {
     ) => void;
     updateLimitOrder: () => void;
     setValidationErrorMessages: (propertyName: string, messages: string[]) => void;
-    validateProperty: (property, value) => void;
+    validateProperty: (property: string, value: string | number) => void;
     registerReactions: () => void;
 }
+
+type TMovements = {
+    profit: number | undefined;
+    indicative: number | undefined;
+};
+
+type TChangeEvent = {
+    name: string;
+    value: string;
+};
 
 export default class SummaryCardStore implements ISummaryCardStore {
     root_store: RootStore;
@@ -51,7 +61,7 @@ export default class SummaryCardStore implements ISummaryCardStore {
     disposeReactionsFn: () => void;
     disposeSwitchAcountListener?: () => void;
 
-    contract_info: null | TContractInfo = null;
+    contract_info: null | ProposalOpenContract = null;
     indicative_movement = '';
     profit_movement = '';
 
@@ -64,7 +74,7 @@ export default class SummaryCardStore implements ISummaryCardStore {
     has_contract_update_take_profit = false;
     has_contract_update_stop_loss = false;
     contract_update_config = {};
-
+    is_loading = false;
     contract_id: string | null = null;
     profit_loss = 0;
     profit = 0;
@@ -163,34 +173,35 @@ export default class SummaryCardStore implements ISummaryCardStore {
         return limit_order;
     }
 
-    onBotContractEvent(contract: TContractInfo) {
+    onBotContractEvent(contract: ProposalOpenContract) {
         const { profit } = contract;
         const indicative = getIndicativePrice(contract);
 
         if (this.contract_id !== contract.id) {
             this.clear(false);
-            this.contract_id = contract.id;
-            this.profit = profit;
-            this.indicative = indicative;
+            this.contract_id = contract.id as string;
+            this.profit = profit as number;
+            this.indicative = indicative as number;
         }
 
-        const movements = { profit, indicative };
+        const movements: TMovements = { profit, indicative };
 
-        Object.keys(movements).forEach(name => {
-            if (movements[name] !== this[name]) {
-                this[`${name}_movement`] = movements[name] > this[name] ? 'profit' : 'loss';
-            } else if (this[`${name}_movement`] !== '') {
+        Object.keys(movements).forEach((name: string) => {
+            if (movements[name as keyof TMovements] !== this[name as keyof TMovements]) {
+                this[`${name as keyof TMovements}_movement`] =
+                    movements?.[name as keyof TMovements] > this[name as keyof TMovements] ? 'profit' : 'loss';
+            } else if (this[`${name as keyof TMovements}_movement`] !== '') {
                 this.indicative_movement = '';
             }
 
-            this[name] = movements[name];
+            this[name as keyof TMovements] = movements[name as keyof TMovements] as number;
         });
 
         // TODO only add props that is being used
         this.contract_info = contract;
     }
 
-    onChange({ name, value }: { name: string; value: string }) {
+    onChange({ name, value }: TChangeEvent) {
         this[name] = value;
         this.validateProperty(name, this[name]);
     }
