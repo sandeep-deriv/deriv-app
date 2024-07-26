@@ -5,21 +5,23 @@ import { withRouter } from 'react-router';
 import NetworkStatus, {
     AccountLimits as AccountLimitsFooter,
     EndpointNote,
-    GoToDeriv,
     HelpCentre,
     RegulatoryInformation,
     ResponsibleTrading,
     ToggleSettings,
     ToggleFullScreen,
+    ToggleLanguageSettings,
 } from 'App/Components/Layout/Footer';
 import LiveChat from 'App/Components/Elements/LiveChat';
 import WhatsApp from 'App/Components/Elements/WhatsApp/index.ts';
-import { connect } from 'Stores/connect';
 import ServerTime from '../server-time.jsx';
-import { isBot, routes } from '@deriv/shared';
+import { routes, useIsMounted, isTabletOs } from '@deriv/shared';
+import { observer, useStore } from '@deriv/stores';
 import DarkModeToggleIcon from 'Assets/SvgComponents/footer/ic-footer-light-theme.svg';
 import LightModeToggleIcon from 'Assets/SvgComponents/footer/ic-footer-dark-theme.svg';
 import { Popover } from '@deriv/components';
+import { localize } from '@deriv/translations';
+import { useRemoteConfig } from '@deriv/api';
 
 const FooterIconSeparator = () => <div className='footer-icon-separator' />;
 
@@ -34,23 +36,26 @@ const FooterExtensionRenderer = (footer_extension, idx) => {
     );
 };
 
-const TradingHubFooter = ({
-    enableApp,
-    footer_extensions,
-    is_app_disabled,
-    is_eu,
-    is_logged_in,
-    is_route_modal_on,
-    is_settings_modal_on,
-    is_virtual,
-    disableApp,
-    landing_company_shortcode,
-    toggleSettingsModal,
-    settings_extension,
-    setDarkMode,
-    is_dark_mode,
-    is_pre_appstore,
-}) => {
+const TradingHubFooter = observer(() => {
+    const { client, common, ui, traders_hub } = useStore();
+    const { show_eu_related_content } = traders_hub;
+    const { has_wallet, is_logged_in, is_eu, landing_company_shortcode, is_virtual } = client;
+    const { current_language } = common;
+    const {
+        enableApp,
+        footer_extensions,
+        settings_extension,
+        is_app_disabled,
+        is_route_modal_on,
+        is_settings_modal_on,
+        is_language_settings_modal_on,
+        disableApp,
+        toggleSettingsModal,
+        toggleLanguageSettingsModal,
+        is_dark_mode_on: is_dark_mode,
+        setDarkMode,
+    } = ui;
+
     let footer_extensions_left = [];
     let footer_extensions_right = [];
     if (footer_extensions.filter) {
@@ -59,11 +64,22 @@ const TradingHubFooter = ({
     }
 
     const changeTheme = () => {
-        if (isBot()) return;
         setDarkMode(!is_dark_mode);
     };
 
+    const isMounted = useIsMounted();
+
     const location = window.location.pathname;
+    const { data } = useRemoteConfig(isMounted());
+    const { cs_chat_livechat, cs_chat_whatsapp } = data;
+
+    const showPopover = !isTabletOs;
+
+    const modeIcon = is_dark_mode ? (
+        <LightModeToggleIcon onClick={changeTheme} />
+    ) : (
+        <DarkModeToggleIcon onClick={changeTheme} />
+    );
 
     return (
         <footer
@@ -83,25 +99,31 @@ const TradingHubFooter = ({
             <FooterIconSeparator />
             <div className='footer__links'>
                 {footer_extensions_right.map(FooterExtensionRenderer)}
-                <WhatsApp />
-                <LiveChat />
-                <GoToDeriv />
-                <ResponsibleTrading />
-                {is_logged_in && <AccountLimitsFooter />}
+                {cs_chat_whatsapp && <WhatsApp showPopover={showPopover} />}
+                {cs_chat_livechat && <LiveChat showPopover={showPopover} />}
+                <ResponsibleTrading showPopover={showPopover} />
+                {is_logged_in && <AccountLimitsFooter showPopover={showPopover} />}
                 {is_logged_in && !is_virtual && (
-                    <RegulatoryInformation landing_company={landing_company_shortcode} is_eu={is_eu} />
+                    <RegulatoryInformation
+                        landing_company={landing_company_shortcode}
+                        is_eu={is_eu}
+                        show_eu_related_content={show_eu_related_content}
+                        showPopover={showPopover}
+                    />
                 )}
-                <div className='footer__links--dark-mode'>
-                    <Popover alignment='top' message='Change theme'>
-                        {is_dark_mode ? (
-                            <LightModeToggleIcon onClick={changeTheme} />
+                {!has_wallet && (
+                    <div className='footer__links--dark-mode'>
+                        {showPopover ? (
+                            <Popover alignment='top' message={localize('Change theme')} zIndex={9999}>
+                                {modeIcon}
+                            </Popover>
                         ) : (
-                            <DarkModeToggleIcon onClick={changeTheme} />
+                            modeIcon
                         )}
-                    </Popover>
-                </div>
+                    </div>
+                )}
                 <FooterIconSeparator />
-                <HelpCentre />
+                <HelpCentre showPopover={showPopover} />
                 {location === routes.trade && (
                     <ToggleSettings
                         is_settings_visible={is_settings_modal_on}
@@ -109,51 +131,25 @@ const TradingHubFooter = ({
                         disableApp={disableApp}
                         enableApp={enableApp}
                         settings_extension={settings_extension}
-                        is_pre_appstore={is_pre_appstore}
+                        showPopover={showPopover}
                     />
                 )}
-                <ToggleFullScreen />
+                {!has_wallet && (
+                    <ToggleLanguageSettings
+                        is_settings_visible={is_language_settings_modal_on}
+                        toggleSettings={toggleLanguageSettingsModal}
+                        lang={current_language}
+                        showPopover={showPopover}
+                    />
+                )}
+                <ToggleFullScreen showPopover={showPopover} />
             </div>
         </footer>
     );
-};
+});
 
 TradingHubFooter.propTypes = {
-    is_app_disabled: PropTypes.bool,
-    is_logged_in: PropTypes.bool,
-    is_route_modal_on: PropTypes.bool,
-    is_settings_modal_on: PropTypes.bool,
-    landing_company_shortcode: PropTypes.string,
     location: PropTypes.object,
-    toggleSettingsModal: PropTypes.func,
-    settings_extension: PropTypes.array,
-    is_virtual: PropTypes.bool,
-    is_eu: PropTypes.bool,
-    disableApp: PropTypes.func,
-    enableApp: PropTypes.func,
-    footer_extensions: PropTypes.array,
-    is_dark_mode: PropTypes.bool,
-    setDarkMode: PropTypes.func,
-    is_pre_appstore: PropTypes.bool,
 };
 
-export default withRouter(
-    connect(({ client, ui }) => ({
-        enableApp: ui.enableApp,
-        footer_extensions: ui.footer_extensions,
-        settings_extension: ui.settings_extension,
-        is_app_disabled: ui.is_app_disabled,
-        is_route_modal_on: ui.is_route_modal_on,
-        is_logged_in: client.is_logged_in,
-        is_eu: client.is_eu,
-        is_loading: ui.is_loading,
-        is_settings_modal_on: ui.is_settings_modal_on,
-        is_virtual: client.is_virtual,
-        landing_company_shortcode: client.landing_company_shortcode,
-        disableApp: ui.disableApp,
-        toggleSettingsModal: ui.toggleSettingsModal,
-        is_dark_mode: ui.is_dark_mode_on,
-        setDarkMode: ui.setDarkMode,
-        is_pre_appstore: client.is_pre_appstore,
-    }))(TradingHubFooter)
-);
+export default withRouter(TradingHubFooter);

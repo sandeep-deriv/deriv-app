@@ -1,31 +1,45 @@
 import * as React from 'react';
+import { Loading } from '@deriv/components';
+import { observer, useStore } from '@deriv/stores';
+import { localize } from '@deriv/translations';
+import { routes } from '@deriv/shared';
 import { Switch } from 'react-router-dom';
 import RouteWithSubroutes from './route-with-sub-routes.jsx';
-import { Localize } from '@deriv/translations';
-import { observer } from 'mobx-react-lite';
-import getRoutesConfig from 'Constants/routes-config';
-import { useStores } from 'Stores';
-import { TRoute } from 'Types';
 
-const Routes: React.FC = () => {
-    const { config } = useStores();
+const Onboarding = React.lazy(() => import(/* webpackChunkName: "modules-onboarding" */ 'Modules/onboarding'));
+const TradersHub = React.lazy(() => import(/* webpackChunkName: "modules-traders-hub" */ 'Modules/traders-hub'));
+const TradersHubLoggedOut = React.lazy(
+    () => import(/* webpackChunkName: "modules-traders-hub-logged-out" */ 'Modules/traders-hub-logged-out')
+);
+const Page404 = React.lazy(() => import(/* */ 'Modules/Page404'));
+
+const Routes: React.FC = observer(() => {
+    const { client } = useStore();
+    const { is_logged_in, is_logging_in } = client;
+
+    const title_TH = localize("Trader's Hub");
+    const title_TH_logged_out = localize('Deriv App');
+    const show_logged_in_version = is_logged_in || is_logging_in;
+
     return (
-        <React.Suspense
-            fallback={
-                <div>
-                    <Localize i18n_default_text='Loading...' />
-                </div>
-            }
-        >
+        <React.Suspense fallback={<Loading />}>
             <Switch>
-                {getRoutesConfig({
-                    consumer_routes: config.routes,
-                }).map((route: TRoute, idx: number) => (
-                    <RouteWithSubroutes key={idx} {...route} />
-                ))}
+                <RouteWithSubroutes
+                    path={routes.traders_hub}
+                    exact
+                    component={show_logged_in_version ? TradersHub : TradersHubLoggedOut}
+                    getTitle={() => (show_logged_in_version ? title_TH : title_TH_logged_out)}
+                />
+                <RouteWithSubroutes
+                    path={routes.onboarding}
+                    exact
+                    component={Onboarding}
+                    getTitle={() => localize('Onboarding')}
+                />
+                <RouteWithSubroutes component={Page404} getTitle={() => localize('Deriv App')} />
             </Switch>
         </React.Suspense>
     );
-};
+});
 
-export default observer(Routes);
+export default Routes;

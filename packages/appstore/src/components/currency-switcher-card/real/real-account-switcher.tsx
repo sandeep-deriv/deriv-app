@@ -1,62 +1,56 @@
 import React from 'react';
-import { observer } from 'mobx-react-lite';
+import { getStatusBadgeConfig } from '@deriv/account';
 import { StatusBadge, Text } from '@deriv/components';
 import CurrencySwitcherContainer from 'Components/containers/currency-switcher-container';
 import CurrencySwitcherLoader from 'Components/pre-loader/currency-switcher-loader';
-import { useStores } from 'Stores/index';
+import { useStore, observer } from '@deriv/stores';
 import RealAccountCard from './real-account-card';
 import './real-account-switcher.scss';
+import { IsIconCurrency } from 'Assets/svgs/currency';
+import { useMFAccountStatus } from '@deriv/hooks';
 
-type AccountNeedsVerificationProps = {
-    multipliers_account_status: string;
-    is_currency_switcher_disabled_for_mf: boolean;
-};
-const AccountNeedsVerification = observer(
-    ({ multipliers_account_status, is_currency_switcher_disabled_for_mf }: AccountNeedsVerificationProps) => {
-        const { client, traders_hub } = useStores();
-        const { account_list, loginid } = client;
+const AccountNeedsVerification = observer(() => {
+    const mf_account_status = useMFAccountStatus();
+    const { client, traders_hub } = useStore();
+    const { account_list, loginid, account_status } = client;
+    const { openModal, openFailedVerificationModal } = traders_hub;
 
-        const { openModal, openFailedVerificationModal } = traders_hub;
+    const account = account_list?.find((acc: { loginid?: string }) => loginid === acc?.loginid);
+    const icon_title = account?.title;
 
-        const title = account_list.find((acc: { loginid: string }) => loginid === acc.loginid).title;
-        const icon = account_list.find((acc: { loginid: string }) => loginid === acc.loginid).icon;
+    const { authentication } = account_status || {};
 
-        return (
-            <CurrencySwitcherContainer
-                className='real-account-switcher__container'
-                title={
-                    <Text size='xs' line_height='s'>
-                        {title}
-                    </Text>
-                }
-                icon={icon}
-                onClick={() => {
-                    if (is_currency_switcher_disabled_for_mf) {
-                        return null;
-                    }
-                    return openModal('currency_selection');
-                }}
-            >
-                <StatusBadge
-                    account_status={multipliers_account_status}
-                    openFailedVerificationModal={openFailedVerificationModal}
-                    selected_account_type='multipliers'
-                />
-            </CurrencySwitcherContainer>
-        );
-    }
-);
+    const { text: badge_text, icon: badge_icon } = getStatusBadgeConfig(
+        mf_account_status,
+        openFailedVerificationModal,
+        'multipliers',
+        undefined,
+        { poi_status: authentication?.identity?.status, poa_status: authentication?.document?.status }
+    );
 
-const RealAccountSwitcher = () => {
-    const { client, traders_hub } = useStores();
+    return (
+        <CurrencySwitcherContainer
+            className='real-account-switcher__container'
+            title={
+                <Text size='xs' line_height='s'>
+                    {icon_title}
+                </Text>
+            }
+            icon={IsIconCurrency(icon_title) ? icon_title : 'USD'}
+            onClick={() => {
+                return openModal('currency_selection');
+            }}
+        >
+            <StatusBadge account_status={mf_account_status} icon={badge_icon} text={badge_text} />
+        </CurrencySwitcherContainer>
+    );
+});
+
+const RealAccountSwitcher = observer(() => {
+    const { client, traders_hub } = useStore();
+    const mf_account_status = useMFAccountStatus();
     const { is_logging_in, is_switching, has_maltainvest_account } = client;
-    const {
-        multipliers_account_status,
-        is_currency_switcher_disabled_for_mf,
-        is_eu_user,
-        no_CR_account,
-        no_MF_account,
-    } = traders_hub;
+    const { is_eu_user, no_CR_account, no_MF_account } = traders_hub;
 
     const eu_account = is_eu_user && !no_MF_account;
     const cr_account = !is_eu_user && !no_CR_account;
@@ -64,19 +58,14 @@ const RealAccountSwitcher = () => {
     //dont show loader if user has no respective regional account
     if ((is_switching || is_logging_in) && (eu_account || cr_account)) {
         return (
-            <div className='real-account-switcher__container loader'>
+            <div className='real-account-switcher__container content-loader'>
                 <CurrencySwitcherLoader />
             </div>
         );
     }
 
-    if (multipliers_account_status && is_eu_user) {
-        return (
-            <AccountNeedsVerification
-                multipliers_account_status={multipliers_account_status}
-                is_currency_switcher_disabled_for_mf={is_currency_switcher_disabled_for_mf}
-            />
-        );
+    if (mf_account_status && is_eu_user) {
+        return <AccountNeedsVerification />;
     }
 
     if (has_maltainvest_account && is_eu_user) {
@@ -85,6 +74,6 @@ const RealAccountSwitcher = () => {
         return <RealAccountCard />;
     }
     return null;
-};
+});
 
-export default observer(RealAccountSwitcher);
+export default RealAccountSwitcher;

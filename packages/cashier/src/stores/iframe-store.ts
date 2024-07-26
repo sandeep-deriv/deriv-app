@@ -79,11 +79,11 @@ export default class IframeStore {
         }
     }
 
-    setIframeUrl(url: string): void {
-        const { client, ui } = this.root_store;
+    setIframeUrl(url?: string): void {
+        const { client } = this.root_store;
 
         if (url) {
-            this.iframe_url = `${url}&theme=${ui.is_dark_mode_on ? 'dark' : 'light'}`;
+            this.iframe_url = url;
 
             const container = this.root_store.modules.cashier.general_store.active_container;
 
@@ -94,7 +94,7 @@ export default class IframeStore {
                 client.setVerificationCode('', Constants.map_action[container_key]);
             }
         } else {
-            this.iframe_url = url;
+            this.iframe_url = '';
         }
     }
 

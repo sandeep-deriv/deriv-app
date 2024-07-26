@@ -1,48 +1,16 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import Loadable from 'react-loadable';
-import { Icon, Modal, Popover, VerticalTab, UILoader } from '@deriv/components';
+import { Icon, Modal, Popover, VerticalTab } from '@deriv/components';
 import { localize } from '@deriv/translations';
 import 'Sass/app/modules/settings.scss';
 
-const ThemeSetting = Loadable({
-    loader: () =>
-        import(
-            /* webpackChunkName: "settings-theme", webpackPrefetch: true */ 'App/Containers/SettingsModal/settings-theme.jsx'
-        ),
-    loading: UILoader,
-});
-
-const LanguageSettingContainer = Loadable({
-    loader: () =>
-        import(
-            /* webpackChunkName: "settings-language", webpackPrefetch: true */ 'App/Containers/SettingsModal/settings-language.jsx'
-        ),
-    loading: UILoader,
-});
-
-const ModalContent = ({ settings_extension, is_pre_appstore }) => {
+const ModalContent = ({ settings_extension }) => {
     const content = [];
-    if (is_pre_appstore) {
-        content.push(...(settings_extension || []));
-    } else {
-        content.push(
-            {
-                icon: 'IcTheme',
-                label: localize('Themes'),
-                value: ThemeSetting,
-            },
-            {
-                icon: 'IcLanguage',
-                label: localize('Language'),
-                value: LanguageSettingContainer,
-            },
-            ...(settings_extension || [])
-        );
-    }
 
-    return <VerticalTab alignment='center' classNameHeader='modal__tab-header' id='modal' list={content} />;
+    content.push(...(settings_extension || []));
+
+    return <VerticalTab list={content} />;
 };
 
 const ToggleSettings = ({
@@ -51,7 +19,7 @@ const ToggleSettings = ({
     disableApp,
     toggleSettings,
     settings_extension,
-    is_pre_appstore,
+    showPopover,
 }) => {
     const toggle_settings_class = classNames('ic-settings', 'footer__link', {
         'ic-settings--active': is_settings_visible,
@@ -64,9 +32,13 @@ const ToggleSettings = ({
                 onClick={toggleSettings}
                 className={`${toggle_settings_class} footer__link`}
             >
-                <Popover alignment='top' message={localize('Platform settings')} zIndex={9999}>
+                {showPopover ? (
+                    <Popover alignment='top' message={localize('Platform settings')} zIndex={9999}>
+                        <Icon icon='IcGear' data_testid='dt_icon' className='footer__icon ic-settings__icon' />
+                    </Popover>
+                ) : (
                     <Icon icon='IcGear' data_testid='dt_icon' className='footer__icon ic-settings__icon' />
-                </Popover>
+                )}
             </a>
             <Modal
                 id='dt_settings_modal'
@@ -79,7 +51,7 @@ const ToggleSettings = ({
                 height='616px'
                 width='736px'
             >
-                <ModalContent settings_extension={settings_extension} is_pre_appstore={is_pre_appstore} />
+                <ModalContent settings_extension={settings_extension} />
             </Modal>
         </React.Fragment>
     );
@@ -91,7 +63,7 @@ ToggleSettings.propTypes = {
     is_settings_visible: PropTypes.bool,
     settings_extension: PropTypes.array,
     toggleSettings: PropTypes.func,
-    is_pre_appstore: PropTypes.bool,
+    showPopover: PropTypes.bool,
 };
 
 export { ToggleSettings };

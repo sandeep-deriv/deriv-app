@@ -4,12 +4,12 @@ import { Button, HintBox, Icon, Loading, Popover, Text, useCopyToClipboard } fro
 import { getKebabCase, website_name, isMobile } from '@deriv/shared';
 import { localize, Localize } from '@deriv/translations';
 import { observer, useStore } from '@deriv/stores';
+import { useCashierStore } from '../../../stores/useCashierStores';
 
 const OnRampProviderPopup = observer(() => {
-    const { ui, modules } = useStore();
+    const { ui } = useStore();
     const { is_dark_mode_on } = ui;
-    const { cashier } = modules;
-    const { onramp } = cashier;
+    const { onramp } = useCashierStore();
     const {
         api_error,
         deposit_address,
@@ -24,13 +24,13 @@ const OnRampProviderPopup = observer(() => {
         widget_error,
         widget_html,
     } = onramp;
-
     const el_onramp_widget_container_ref = React.useRef(null);
     const [is_copied, copyToClipboard, setIsCopied] = useCopyToClipboard();
+
     let timeout_clipboard: ReturnType<typeof setTimeout>;
 
     const onClickCopyDepositAddress = () => {
-        copyToClipboard(deposit_address);
+        copyToClipboard(deposit_address || '');
 
         timeout_clipboard = setTimeout(() => {
             setIsCopied(false);
@@ -39,6 +39,7 @@ const OnRampProviderPopup = observer(() => {
 
     React.useEffect(() => {
         return () => clearTimeout(timeout_clipboard);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // JS executed after "on-ramp__widget-container" has been added to the DOM.
@@ -46,7 +47,7 @@ const OnRampProviderPopup = observer(() => {
     // (vs embedding an <iframe>)
     React.useEffect(() => {
         if (should_show_widget && widget_html) {
-            selected_provider.onMountWidgetContainer(el_onramp_widget_container_ref);
+            selected_provider?.onMountWidgetContainer(el_onramp_widget_container_ref);
         }
     }, [selected_provider, should_show_widget, widget_html]);
 
@@ -69,7 +70,7 @@ const OnRampProviderPopup = observer(() => {
                 {widget_error ? (
                     <div className='on-ramp__widget-container-error'>{widget_error}</div>
                 ) : (
-                    <div dangerouslySetInnerHTML={{ __html: widget_html }} />
+                    <div dangerouslySetInnerHTML={{ __html: widget_html || '' }} />
                 )}
             </div>
         );
@@ -107,12 +108,12 @@ const OnRampProviderPopup = observer(() => {
                             <Localize i18n_default_text="Please copy the crypto address you see below. You'll need it to deposit your cryptocurrency." />
                         </Text>
                         <div className='on-ramp__popup-deposit-address'>
-                            <Popover zIndex={9998} alignment='right' message={localize('Copied!')} is_open={is_copied}>
+                            <Popover zIndex='9998' alignment='right' message={localize('Copied!')} is_open={is_copied}>
                                 <input
                                     className={classNames('on-ramp__popup-deposit-address-text', {
                                         'on-ramp__popup-deposit-address-text--dark': is_dark_mode_on,
                                     })}
-                                    defaultValue={deposit_address}
+                                    defaultValue={deposit_address || ''}
                                     disabled
                                     onFocus={e => e.preventDefault()}
                                 />

@@ -21,11 +21,11 @@ const {
     js_loaders,
     svg_file_loaders,
     svg_loaders,
+    IS_RELEASE,
 } = require('./loaders-config');
 
-const IS_RELEASE = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
 const ALIASES = {
+    'react/jsx-runtime': 'react/jsx-runtime.js',
     _common: path.resolve(__dirname, '../src/_common'),
     Constants: path.resolve(__dirname, '../src/Constants'),
     Components: path.resolve(__dirname, '../src/Components'),
@@ -34,6 +34,7 @@ const ALIASES = {
     Modules: path.resolve(__dirname, '../src/Modules'),
     Sass: path.resolve(__dirname, '../src/sass'),
     Stores: path.resolve(__dirname, '../src/Stores'),
+    Types: path.resolve(__dirname, '../src/types'),
 };
 
 const rules = (is_test_env = false) => [

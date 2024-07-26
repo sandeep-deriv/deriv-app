@@ -1,23 +1,14 @@
 import React from 'react';
-import {
-    Button,
-    DesktopWrapper,
-    Icon,
-    Loading,
-    MobileDialog,
-    MobileWrapper,
-    Modal,
-    Text,
-    UILoader,
-} from '@deriv/components';
-import { localize } from '@deriv/translations';
-import RootStore from '../Stores/index';
+import { useDevice } from '@deriv-com/ui';
 import { PoiPoaDocsSubmitted } from '@deriv/account';
-import { connect } from '../Stores/connect';
-import { getAuthenticationStatusInfo, isMobile, WS } from '@deriv/shared';
 import { AccountStatusResponse } from '@deriv/api-types';
-import { TCFDDbviOnboardingProps } from './props.types';
+import { Button, Icon, Loading, MobileDialog, Modal, Text, UILoader } from '@deriv/components';
+import { localize } from '@deriv/translations';
+import { getAuthenticationStatusInfo, isMobile, WS, isPOARequiredForMT5 } from '@deriv/shared';
 import CFDFinancialStpRealAccountSignup from './cfd-financial-stp-real-account-signup';
+import { observer, useStore } from '@deriv/stores';
+import { useCfdStore } from '../Stores/Modules/CFD/Helpers/useCfdStores';
+import { JURISDICTION } from '../Helpers/cfd-config';
 
 const SwitchToRealAccountMessage = ({ onClickOk }: { onClickOk: () => void }) => (
     <div className='da-icon-with-message'>
@@ -37,44 +28,47 @@ const SwitchToRealAccountMessage = ({ onClickOk }: { onClickOk: () => void }) =>
     </div>
 );
 
-const CFDDbviOnboarding = ({
-    account_status,
-    context,
-    disableApp,
-    enableApp,
-    fetchAccountSettings,
-    has_created_account_for_selected_jurisdiction,
-    has_submitted_cfd_personal_details,
-    is_cfd_verification_modal_visible,
-    is_virtual,
-    jurisdiction_selected_shortcode,
-    openPasswordModal,
-    toggleCFDVerificationModal,
-    updateAccountStatus,
-    updateMT5Status,
-}: TCFDDbviOnboardingProps) => {
-    const [showSubmittedModal, setShowSubmittedModal] = React.useState(false);
+const CFDDbviOnboarding = observer(() => {
+    const { isDesktop } = useDevice();
+    const { client, ui } = useStore();
+
+    const { account_status, fetchAccountSettings, is_virtual, updateAccountStatus, updateMT5Status } = client;
+    const { disableApp, enableApp } = ui;
+
+    const {
+        has_created_account_for_selected_jurisdiction,
+        has_submitted_cfd_personal_details,
+        is_cfd_verification_modal_visible,
+        jurisdiction_selected_shortcode,
+        enableCFDPasswordModal,
+        toggleCFDVerificationModal,
+    } = useCfdStore();
+
+    const [showSubmittedModal, setShowSubmittedModal] = React.useState(true);
     const [is_loading, setIsLoading] = React.useState(false);
 
     const getAccountStatusFromAPI = () => {
         WS.authorized.getAccountStatus().then((response: AccountStatusResponse) => {
             const { get_account_status } = response;
-
             if (get_account_status?.authentication) {
-                const { poi_acknowledged_for_vanuatu_maltainvest, poi_acknowledged_for_bvi_labuan, poa_acknowledged } =
+                const { poi_acknowledged_for_maltainvest, poi_acknowledged_for_bvi_labuan_vanuatu, poa_acknowledged } =
                     getAuthenticationStatusInfo(get_account_status);
-                if (jurisdiction_selected_shortcode === 'vanuatu') {
-                    setShowSubmittedModal(
-                        poi_acknowledged_for_vanuatu_maltainvest &&
-                            poa_acknowledged &&
-                            has_submitted_cfd_personal_details
+                if (jurisdiction_selected_shortcode === JURISDICTION.MALTA_INVEST) {
+                    setShowSubmittedModal(poi_acknowledged_for_maltainvest && poa_acknowledged);
+                } else {
+                    /**
+                     * Need to retrigger POA when user has not explicitly submitted Address proof docs
+                     */
+                    const is_poa_required_for_mt5 = isPOARequiredForMT5(
+                        account_status,
+                        jurisdiction_selected_shortcode
                     );
-                } else if (jurisdiction_selected_shortcode === 'maltainvest') {
-                    setShowSubmittedModal(poi_acknowledged_for_vanuatu_maltainvest && poa_acknowledged);
-                } else
                     setShowSubmittedModal(
-                        poi_acknowledged_for_bvi_labuan && poa_acknowledged && has_submitted_cfd_personal_details
+                        poi_acknowledged_for_bvi_labuan_vanuatu &&
+                            has_submitted_cfd_personal_details &&
+                            !is_poa_required_for_mt5
                     );
+                }
             }
 
             setIsLoading(false);
@@ -104,8 +98,7 @@ const CFDDbviOnboarding = ({
                 account_status={account_status}
                 jurisdiction_selected_shortcode={jurisdiction_selected_shortcode}
                 has_created_account_for_selected_jurisdiction={has_created_account_for_selected_jurisdiction}
-                openPasswordModal={openPasswordModal}
-                context={context}
+                openPasswordModal={enableCFDPasswordModal}
             />
         ) : (
             <CFDFinancialStpRealAccountSignup
@@ -115,10 +108,9 @@ const CFDDbviOnboarding = ({
                         setShowSubmittedModal(true);
                     } else {
                         toggleCFDVerificationModal();
-                        openPasswordModal();
+                        enableCFDPasswordModal();
                     }
                 }}
-                context={context}
             />
         );
     };
@@ -130,7 +122,7 @@ const CFDDbviOnboarding = ({
 
     return (
         <React.Suspense fallback={<UILoader />}>
-            <DesktopWrapper>
+            {isDesktop ? (
                 <Modal
                     className='cfd-financial-stp-modal'
                     disableApp={disableApp}
@@ -140,43 +132,24 @@ const CFDDbviOnboarding = ({
                     toggleModal={toggleCFDVerificationModal}
                     height='700px'
                     width='996px'
-                    context={context}
                     onMount={() => getAccountStatusFromAPI()}
                     exit_classname='cfd-modal--custom-exit'
                 >
                     {getModalContent()}
                 </Modal>
-            </DesktopWrapper>
-            <MobileWrapper>
+            ) : (
                 <MobileDialog
                     portal_element_id='deriv_app'
                     title={getModalTitle()}
                     wrapper_classname='cfd-financial-stp-modal'
                     visible={is_cfd_verification_modal_visible}
                     onClose={toggleCFDVerificationModal}
-                    context={context}
                 >
                     {getModalContent()}
                 </MobileDialog>
-            </MobileWrapper>
+            )}
         </React.Suspense>
     );
-};
+});
 
-export default connect(({ client, modules: { cfd }, ui }: RootStore) => ({
-    account_status: client.account_status,
-    account_type: cfd.account_type,
-    disableApp: ui.disableApp,
-    enableApp: ui.enableApp,
-    fetchAccountSettings: client.fetchAccountSettings,
-    has_created_account_for_selected_jurisdiction: cfd.has_created_account_for_selected_jurisdiction,
-    has_submitted_cfd_personal_details: cfd.has_submitted_cfd_personal_details,
-    is_cfd_verification_modal_visible: cfd.is_cfd_verification_modal_visible,
-    is_virtual: client.is_virtual,
-    jurisdiction_selected_shortcode: cfd.jurisdiction_selected_shortcode,
-    mt5_login_list: client.mt5_login_list,
-    openPasswordModal: cfd.enableCFDPasswordModal,
-    toggleCFDVerificationModal: cfd.toggleCFDVerificationModal,
-    updateAccountStatus: client.updateAccountStatus,
-    updateMT5Status: client.updateMT5Status,
-}))(CFDDbviOnboarding);
+export default CFDDbviOnboarding;

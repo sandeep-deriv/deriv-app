@@ -1,11 +1,14 @@
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const DefinePlugin = require('webpack').DefinePlugin;
+const Dotenv = require('dotenv-webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 const StyleLintPlugin = require('stylelint-webpack-plugin');
 const SpriteLoaderPlugin = require('svg-sprite-loader/plugin');
 
-const is_release = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+const IS_RELEASE =
+    process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'test';
 
 const output = {
     path: path.resolve(__dirname, 'dist'),
@@ -20,7 +23,7 @@ module.exports = function (env) {
     const base = env && env.base && env.base !== true ? `/${env.base}/` : '/';
 
     return {
-        entry: [path.join(__dirname, 'src', 'app', 'app.js')],
+        entry: [path.join(__dirname, 'src', 'app', 'index.ts')],
         output: {
             ...output,
             publicPath: base,
@@ -29,8 +32,8 @@ module.exports = function (env) {
             publicPath: '/dist/',
             disableHostCheck: true,
         },
-        mode: is_release ? 'production' : 'development',
-        devtool: is_release ? undefined : 'eval-cheap-module-source-map',
+        mode: IS_RELEASE ? 'production' : 'development',
+        devtool: IS_RELEASE ? 'source-map' : 'eval-cheap-module-source-map',
         target: 'web',
         module: {
             rules: [
@@ -50,13 +53,13 @@ module.exports = function (env) {
                         {
                             loader: 'css-loader',
                             options: {
-                                sourceMap: true,
+                                sourceMap: !IS_RELEASE,
                                 url: false,
                             },
                         },
                         {
                             loader: 'sass-loader',
-                            options: { sourceMap: true },
+                            options: { sourceMap: !IS_RELEASE },
                         },
                         {
                             loader: 'sass-resources-loader',
@@ -88,11 +91,6 @@ module.exports = function (env) {
                 {
                     test: /\.(js|jsx|ts|tsx)$/,
                     exclude: /node_modules/,
-                    loader: '@deriv/shared/src/loaders/react-import-loader.js',
-                },
-                {
-                    test: /\.(js|jsx|ts|tsx)$/,
-                    exclude: /node_modules/,
                     loader: 'babel-loader',
                     options: {
                         rootMode: 'upward',
@@ -112,10 +110,28 @@ module.exports = function (env) {
                 Constants: path.resolve(__dirname, './src/constants'),
                 Stores: path.resolve(__dirname, './src/stores'),
                 Utils: path.resolve(__dirname, './src/utils'),
+                Types: path.resolve(__dirname, 'src/types'),
             },
             extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
         plugins: [
+            new Dotenv(),
+            new DefinePlugin({
+                'process.env.GD_CLIENT_ID': JSON.stringify(process.env.GD_CLIENT_ID),
+                'process.env.GD_API_KEY': JSON.stringify(process.env.GD_API_KEY),
+                'process.env.GD_APP_ID': JSON.stringify(process.env.GD_APP_ID),
+                'process.env.DATADOG_APPLICATION_ID': JSON.stringify(process.env.DATADOG_APPLICATION_ID),
+                'process.env.DATADOG_CLIENT_TOKEN_LOGS': JSON.stringify(process.env.DATADOG_CLIENT_TOKEN_LOGS),
+                'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+                'process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE': JSON.stringify(
+                    process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE
+                ),
+                'process.env.DATADOG_SESSION_SAMPLE_RATE_LOGS': JSON.stringify(
+                    process.env.DATADOG_SESSION_SAMPLE_RATE_LOGS
+                ),
+                'process.env.REF_NAME': JSON.stringify(process.env.REF_NAME),
+                'process.env.REMOTE_CONFIG_URL': JSON.stringify(process.env.REMOTE_CONFIG_URL),
+            }),
             new CleanWebpackPlugin(),
             new MiniCssExtractPlugin({
                 filename: 'bot/css/bot.main.[contenthash].css',
@@ -140,10 +156,12 @@ module.exports = function (env) {
                 'mobx-react': 'mobx-react',
                 'react-dom': 'react-dom',
                 '@deriv/deriv-charts': '@deriv/deriv-charts',
+                '@deriv-com/analytics': `@deriv-com/analytics`,
             },
             /^@deriv\/shared\/.+$/,
             /^@deriv\/components\/.+$/,
             /^@deriv\/translations\/.+$/,
+            /^@deriv\/analytics\/.+$/,
         ],
     };
 };

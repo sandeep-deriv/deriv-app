@@ -2,6 +2,7 @@ import { localize } from '@deriv/translations';
 
 export const getCardLabels = () => ({
     APPLY: 'Apply',
+    BARRIER: 'Barrier:',
     STAKE: 'Stake:',
     CLOSE: 'Close',
     CANCEL: 'Cancel',
@@ -18,8 +19,7 @@ export const getCardLabels = () => ({
     PURCHASE_PRICE: 'Buy price:',
     POTENTIAL_PAYOUT: 'Payout limit:',
     TICK: 'Tick ',
-    WON: 'Won',
-    LOST: 'Lost',
+    TICKS: 'Ticks',
     DAYS: 'Days',
     DAY: 'Day',
     SELL: 'Sell',
@@ -63,19 +63,19 @@ export const getMarketNamesMap = () => ({
     FRXXAUUSD: 'Gold/USD',
     FRXXPDUSD: 'Palladium/USD',
     FRXXPTUSD: 'Platinum/USD',
-    OTC_AEX: 'Dutch Index',
-    OTC_AS51: 'Australian Index',
-    OTC_DJI: 'Wall Street Index',
-    OTC_FCHI: 'French Index',
-    OTC_FTSE: 'UK Index',
-    OTC_GDAXI: 'German Index',
-    OTC_HSI: 'Hong Kong Index',
+    OTC_AEX: 'Netherlands 25',
+    OTC_AS51: 'Australia 200',
+    OTC_DJI: 'Wall Street 30',
+    OTC_FCHI: 'France 40',
+    OTC_FTSE: 'UK 100',
+    OTC_GDAXI: 'Germany 40',
+    OTC_HSI: 'Hong Kong 50',
     OTC_IBEX35: 'Spanish Index',
-    OTC_N225: 'Japanese Index',
-    OTC_NDX: 'US Tech Index',
-    OTC_SPC: 'US Index',
-    OTC_SSMI: 'Swiss Index',
-    OTC_SX5E: 'Euro 50 Index',
+    OTC_N225: 'Japan 225',
+    OTC_NDX: 'US Tech 100',
+    OTC_SPC: 'US 500',
+    OTC_SSMI: 'Swiss 20',
+    OTC_SX5E: 'Euro 50',
     R_10: 'Volatility 10 Index',
     R_25: 'Volatility 25 Index',
     R_50: 'Volatility 50 Index',
@@ -96,7 +96,9 @@ export const getMarketNamesMap = () => ({
     WLDUSD: 'USD Basket',
     '1HZ10V': 'Volatility 10 (1s) Index',
     '1HZ100V': 'Volatility 100 (1s) Index',
+    '1HZ150V': 'Volatility 150 (1s) Index',
     '1HZ200V': 'Volatility 200 (1s) Index',
+    '1HZ250V': 'Volatility 250 (1s) Index',
     '1HZ300V': 'Volatility 300 (1s) Index',
     JD10: localize('Jump 10 Index'),
     JD25: localize('Jump 25 Index'),
@@ -108,58 +110,6 @@ export const getMarketNamesMap = () => ({
 });
 
 export const getUnsupportedContracts = () => ({
-    EXPIRYMISS: {
-        name: 'Ends Outside',
-        position: 'top',
-    },
-    EXPIRYRANGE: {
-        name: 'Ends Between',
-        position: 'bottom',
-    },
-    RANGE: {
-        name: 'Stays Between',
-        position: 'top',
-    },
-    UPORDOWN: {
-        name: 'Goes Outside',
-        position: 'bottom',
-    },
-    RESETCALL: {
-        name: 'Reset Call',
-        position: 'top',
-    },
-    RESETPUT: {
-        name: 'Reset Put',
-        position: 'bottom',
-    },
-    TICKHIGH: {
-        name: 'High Tick',
-        position: 'top',
-    },
-    TICKLOW: {
-        name: 'Low Tick',
-        position: 'bottom',
-    },
-    ASIANU: {
-        name: 'Asian Up',
-        position: 'top',
-    },
-    ASIAND: {
-        name: 'Asian Down',
-        position: 'bottom',
-    },
-    LBFLOATCALL: {
-        name: 'Close-to-Low',
-        position: 'top',
-    },
-    LBFLOATPUT: {
-        name: 'High-to-Close',
-        position: 'top',
-    },
-    LBHIGHLOW: {
-        name: 'High-to-Low',
-        position: 'top',
-    },
     CALLSPREAD: {
         name: 'Spread Up',
         position: 'top',
@@ -168,17 +118,14 @@ export const getUnsupportedContracts = () => ({
         name: 'Spread Down',
         position: 'bottom',
     },
-    RUNHIGH: {
-        name: 'Only Ups',
-        position: 'top',
-    },
-    RUNLOW: {
-        name: 'Only Downs',
-        position: 'bottom',
-    },
 });
 
 export const getSupportedContracts = is_high_low => ({
+    ACCU: {
+        button_name: 'Buy',
+        name: 'Accumulators',
+        position: 'top',
+    },
     CALL: {
         name: is_high_low ? 'Higher' : 'Rise',
         position: 'top',
@@ -235,6 +182,74 @@ export const getSupportedContracts = is_high_low => ({
         name: 'Down',
         position: 'bottom',
     },
+    TURBOSLONG: {
+        name: 'Up',
+        position: 'top',
+    },
+    TURBOSSHORT: {
+        name: 'Down',
+        position: 'bottom',
+    },
+    RUNHIGH: {
+        name: 'Only Ups',
+        position: 'top',
+    },
+    RUNLOW: {
+        name: 'Only Downs',
+        position: 'bottom',
+    },
+    EXPIRYMISS: {
+        name: 'Ends Outside',
+        position: 'top',
+    },
+    EXPIRYRANGE: {
+        name: 'Ends Between',
+        position: 'bottom',
+    },
+    RANGE: {
+        name: 'Stays Between',
+        position: 'top',
+    },
+    UPORDOWN: {
+        name: 'Goes Outside',
+        position: 'bottom',
+    },
+    ASIANU: {
+        name: 'Asian Up',
+        position: 'top',
+    },
+    ASIAND: {
+        name: 'Asian Down',
+        position: 'bottom',
+    },
+    RESETCALL: {
+        name: 'Reset Call',
+        position: 'top',
+    },
+    RESETPUT: {
+        name: 'Reset Put',
+        position: 'bottom',
+    },
+    LBFLOATCALL: {
+        name: 'Close-Low',
+        position: 'top',
+    },
+    LBFLOATPUT: {
+        name: 'High-Close',
+        position: 'top',
+    },
+    LBHIGHLOW: {
+        name: 'High-Low',
+        position: 'top',
+    },
+    TICKHIGH: {
+        name: 'High Tick',
+        position: 'top',
+    },
+    TICKLOW: {
+        name: 'Low Tick',
+        position: 'bottom',
+    },
 });
 
 export const getContractConfig = is_high_low => ({
@@ -242,8 +257,9 @@ export const getContractConfig = is_high_low => ({
     ...getUnsupportedContracts(),
 });
 
-export const getContractTypeDisplay = (type, is_high_low = false) => {
-    return getContractConfig(is_high_low)[type] ? getContractConfig(is_high_low)[type.toUpperCase()].name : '';
+export const getContractTypeDisplay = (type, is_high_low = false, show_button_name = false) => {
+    const contract_config = getContractConfig(is_high_low)[type];
+    return (show_button_name && contract_config.button_name) || contract_config.name || '';
 };
 
 export const getContractTypePosition = (type, is_high_low = false) =>

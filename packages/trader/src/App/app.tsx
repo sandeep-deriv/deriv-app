@@ -1,19 +1,21 @@
-import PropTypes from 'prop-types';
 import React from 'react';
 import Loadable from 'react-loadable';
-import Routes from 'App/Containers/Routes/routes.jsx';
-import TradeHeaderExtensions from 'App/Containers/trade-header-extensions.jsx';
-import TradeFooterExtensions from 'App/Containers/trade-footer-extensions.jsx';
-import TradeSettingsExtensions from 'App/Containers/trade-settings-extensions.jsx';
-import { NetworkStatusToastErrorPopup } from 'Modules/Trading/Containers/toast-popup.jsx';
-import { MobxContentProvider } from 'Stores/connect';
-import initStore from './init-store.js'; // eslint-disable-line import/extensions
+import Routes from 'App/Containers/Routes/routes';
+import TradeHeaderExtensions from 'App/Containers/trade-header-extensions';
+import TradeFooterExtensions from 'App/Containers/trade-footer-extensions';
+import TradeSettingsExtensions from 'App/Containers/trade-settings-extensions';
+import { NetworkStatusToastErrorPopup } from 'Modules/Trading/Containers/toast-popup';
+import type { TWebSocket } from 'Types';
+import initStore from './init-store';
 import 'Sass/app.scss';
+import type { TCoreStores } from '@deriv/stores/types';
+import TraderProviders from '../trader-providers';
+import ModulesProvider from 'Stores/Providers/modules-providers';
 
 type Apptypes = {
     passthrough: {
-        root_store: any;
-        WS: any;
+        root_store: TCoreStores;
+        WS: TWebSocket;
     };
 };
 
@@ -23,30 +25,24 @@ const TradeModals = Loadable({
 });
 
 const App = ({ passthrough }: Apptypes) => {
-    const [root_store] = React.useState(initStore(passthrough.root_store, passthrough.WS));
+    const root_store = initStore(passthrough.root_store, passthrough.WS);
+
     React.useEffect(() => {
         return () => root_store.ui.setPromptHandler(false);
     }, [root_store]);
 
     return (
-        <MobxContentProvider store={root_store}>
-            <React.Fragment>
+        <TraderProviders store={root_store}>
+            <ModulesProvider store={root_store}>
                 <Routes />
                 <TradeModals />
                 <NetworkStatusToastErrorPopup />
                 <TradeHeaderExtensions store={root_store} />
                 <TradeFooterExtensions />
                 <TradeSettingsExtensions store={root_store} />
-            </React.Fragment>
-        </MobxContentProvider>
+            </ModulesProvider>
+        </TraderProviders>
     );
-};
-
-App.propTypes = {
-    passthrough: PropTypes.shape({
-        root_store: PropTypes.object,
-        WS: PropTypes.object,
-    }),
 };
 
 export default App;

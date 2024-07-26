@@ -1,30 +1,190 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { observer } from 'mobx-react-lite';
-import { ResetTradingPasswordModal } from '@deriv/account';
-import {
-    JurisdictionModal,
-    CFDPasswordModal,
-    CFDDbviOnBoarding,
-    CFDResetPasswordModal,
-    CFDTopUpDemoModal,
-    MT5TradeModal,
-    CFDPasswordManagerModal,
-    CompareAccountsModal,
-} from '@deriv/cfd';
-import MT5AccountTypeModal from './account-type-modal';
-import RegulatorsCompareModal from './regulators-compare-modal';
+import { useWalletMigration } from '@deriv/hooks';
+import { makeLazyLoader, moduleLoader } from '@deriv/shared';
+import { Loading } from '@deriv/components';
+import { TTradingPlatformAvailableAccount } from './account-type-modal/types';
 import { useStores } from 'Stores';
-import CFDServerErrorDialog from '@deriv/cfd/src/Containers/cfd-server-error-dialog';
 import { TOpenAccountTransferMeta } from 'Types';
 import { DetailsOfEachMT5Loginid } from '@deriv/api-types';
-import FailedVerificationModal from './failed-veriification-modal';
-import AccountTransferModal from 'Components/account-transfer-modal';
+
+const FailedVerificationModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () => import(/* webpackChunkName: "modal_failed-veriification-modal" */ './failed-veriification-modal')
+        ),
+    () => <Loading />
+)();
+
+const AccountTransferModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_Components_account-transfer-modal" */ 'Components/account-transfer-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const RegulatorsCompareModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () => import(/* webpackChunkName: "modal_regulators-compare-modal" */ './regulators-compare-modal')
+        ),
+    () => <Loading />
+)();
+
+const WalletsMigrationFailed = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () => import(/* webpackChunkName: "modal_wallets-migration-failed" */ './wallets-migration-failed')
+        ),
+    () => <Loading />
+)();
+
+const WalletsUpgradeModal = makeLazyLoader(
+    () => moduleLoader(() => import(/* webpackChunkName: "modal_wallets-upgrade-modal" */ './wallets-upgrade-modal')),
+    () => <Loading />
+)();
+
+const CFDServerErrorDialog = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-server-error-dialog" */ '@deriv/cfd/src/Containers/cfd-server-error-dialog'
+                )
+        ),
+    () => <Loading />
+)();
+
+const JurisdictionModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_jurisdiction-modal" */ '@deriv/cfd/src/Containers/jurisdiction-modal/jurisdiction-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const CFDPasswordModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-password-modal" */ '@deriv/cfd/src/Containers/cfd-password-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const CFDDbviOnBoarding = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-dbvi-onboarding" */ '@deriv/cfd/src/Containers/cfd-dbvi-onboarding'
+                )
+        ),
+    () => <Loading />
+)();
+
+const CFDResetPasswordModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-reset-password-modal" */ '@deriv/cfd/src/Containers/cfd-reset-password-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const CFDTopUpDemoModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-top-up-demo-modal" */ '@deriv/cfd/src/Containers/cfd-top-up-demo-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const MT5TradeModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(/* webpackChunkName: "modal_cfd_mt5-trade-modal" */ '@deriv/cfd/src/Containers/mt5-trade-modal')
+        ),
+    () => <Loading />
+)();
+
+const CFDPasswordManagerModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_cfd-password-manager-modal" */ '@deriv/cfd/src/Containers/cfd-password-manager-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const MT5MigrationModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_mt5-migration-modal" */ '@deriv/cfd/src/Containers/mt5-migration-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const ResetTradingPasswordModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_account_reset-trading-password-modal" */ '@deriv/account/src/Components/reset-trading-password-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const CTraderTransferModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_cfd_ctrader-transfer-modal" */ '@deriv/cfd/src/Containers/ctrader-transfer-modal'
+                )
+        ),
+    () => <Loading />
+)();
+
+const SetupRealAccountOrGoToDemoModal = makeLazyLoader(
+    () =>
+        moduleLoader(
+            () =>
+                import(
+                    /* webpackChunkName: "modal_setup-real-account-or-go-to-demo" */ './setup-real-account-or-go-to-demo-modal'
+                )
+        ),
+    () => <Loading />
+)();
 
 type TCurrentList = DetailsOfEachMT5Loginid & {
     enabled: number;
 };
 
 const ModalManager = () => {
+    const { is_eligible, is_in_progress } = useWalletMigration();
     const store = useStores();
     const { common, client, modules, traders_hub, ui } = store;
     const {
@@ -32,9 +192,8 @@ const ModalManager = () => {
         is_eu,
         is_eu_country,
         is_populating_mt5_account_list,
-        has_active_real_account,
-        real_account_creation_unlock_date,
         verification_code,
+        should_show_effortless_login_modal,
     } = client;
     const { platform } = common;
     const {
@@ -45,32 +204,44 @@ const ModalManager = () => {
         toggleMT5TradeModal,
         getRealSyntheticAccountsExistingData,
         getRealFinancialAccountsExistingData,
-        current_account,
-        dxtrade_companies,
-        mt5_companies,
-        topUpVirtual,
+        getRealSwapfreeAccountsExistingData,
+        has_cfd_error,
+        is_jurisdiction_modal_visible,
+        is_cfd_verification_modal_visible,
+        mt5_migration_error,
+        is_mt5_password_invalid_format_modal_visible,
+        is_cfd_password_modal_enabled,
+        is_cfd_success_dialog_enabled,
+        is_sent_email_modal_enabled,
+        is_ctrader_transfer_modal_visible,
     } = modules.cfd;
     const {
         enableApp,
         disableApp,
-        is_top_up_virtual_open,
-        is_top_up_virtual_in_progress,
-        is_top_up_virtual_success,
-        closeTopUpModal,
-        closeSuccessTopUpModal,
-        setShouldShowCooldownModal,
         is_reset_trading_password_modal_visible,
-        setResetTradingPasswordModalOpen,
+        setCFDPasswordResetModal,
+        is_top_up_virtual_open,
+        is_top_up_virtual_success,
+        is_mt5_migration_modal_open,
     } = ui;
-    const { is_demo, is_account_transfer_modal_open, toggleAccountTransferModal } = traders_hub;
+    const {
+        is_demo,
+        is_account_transfer_modal_open,
+        toggleAccountTransferModal,
+        is_real_wallets_upgrade_on,
+        is_failed_verification_modal_visible,
+        is_regulators_compare_modal_visible,
+        is_wallet_migration_failed,
+        is_setup_real_account_or_go_to_demo_modal_visible,
+    } = traders_hub;
 
     const [password_manager, setPasswordManager] = React.useState<{
         is_visible: boolean;
         selected_login: string;
         selected_account: string;
-        selected_account_type?: string;
-        selected_account_group?: string;
-        selected_server?: string;
+        selected_account_type: string;
+        selected_account_group: '' | 'demo' | 'real';
+        selected_server: string;
     }>({
         is_visible: false,
         selected_login: '',
@@ -83,7 +254,7 @@ const ModalManager = () => {
     const togglePasswordManagerModal = (
         login?: string,
         title?: string,
-        group?: string,
+        group?: 'demo' | 'real' | '',
         type?: string,
         server?: string
     ) => {
@@ -91,9 +262,9 @@ const ModalManager = () => {
             is_visible: !prev_state.is_visible,
             selected_login: typeof login === 'string' ? login : '',
             selected_account: typeof title === 'string' ? title : '',
-            selected_account_group: group,
-            selected_account_type: type,
-            selected_server: server,
+            selected_account_group: group || '',
+            selected_account_type: type || '',
+            selected_server: server || '',
         }));
     };
 
@@ -102,7 +273,7 @@ const ModalManager = () => {
         enableCFDPasswordModal();
     };
 
-    const existing_accounts_data = (acc_type: 'synthetic' | 'financial') => {
+    const existing_accounts_data = (acc_type: TTradingPlatformAvailableAccount['market_type'] | 'synthetic') => {
         const current_list_keys = Object.keys(current_list);
         const should_be_enabled = (list_item: TCurrentList) =>
             platform === 'dxtrade' ? list_item.enabled === 1 : true;
@@ -123,72 +294,70 @@ const ModalManager = () => {
 
     getRealSyntheticAccountsExistingData(existing_accounts_data('synthetic'));
     getRealFinancialAccountsExistingData(existing_accounts_data('financial'));
+    getRealSwapfreeAccountsExistingData(existing_accounts_data('all'));
+
+    const should_show_cfd_password_modal =
+        is_cfd_password_modal_enabled ||
+        is_cfd_success_dialog_enabled ||
+        is_mt5_password_invalid_format_modal_visible ||
+        is_sent_email_modal_enabled;
 
     return (
         <React.Fragment>
-            <JurisdictionModal context={store} openPasswordModal={openRealPasswordModal} />
-            <CFDPasswordModal context={store} platform={platform} />
-            <CFDDbviOnBoarding context={store} />
-            <CFDResetPasswordModal context={store} platform={platform} />
-            <CFDServerErrorDialog />
-            <CFDTopUpDemoModal
-                context={store}
-                dxtrade_companies={dxtrade_companies}
-                mt5_companies={mt5_companies}
-                current_account={current_account}
-                closeSuccessTopUpModal={closeSuccessTopUpModal}
-                closeTopUpModal={closeTopUpModal}
-                is_top_up_virtual_open={is_top_up_virtual_open}
-                is_top_up_virtual_in_progress={is_top_up_virtual_in_progress}
-                is_top_up_virtual_success={is_top_up_virtual_success}
-                platform={platform}
-                topUpVirtual={topUpVirtual}
-            />
-            <MT5TradeModal
-                context={store}
-                current_list={current_list}
-                is_open={is_mt5_trade_modal_visible}
-                onPasswordManager={togglePasswordManagerModal}
-                toggleModal={toggleMT5TradeModal}
-                is_eu_user={(is_logged_in && is_eu) || (!is_logged_in && is_eu_country)}
-                is_demo={is_demo}
-            />
-            <CFDPasswordManagerModal
-                is_visible={password_manager.is_visible}
-                selected_login={password_manager.selected_login}
-                selected_account={password_manager.selected_account}
-                selected_account_group={password_manager.selected_account_group}
-                selected_account_type={password_manager.selected_account_type}
-                selected_server={password_manager.selected_server}
-                context={store}
-                platform={platform}
-                toggleModal={togglePasswordManagerModal}
-            />
-            <ResetTradingPasswordModal
-                context={store}
-                platform={trading_platform_dxtrade_password_reset ? 'dxtrade' : 'mt5'}
-                enableApp={enableApp}
-                disableApp={disableApp}
-                toggleResetTradingPasswordModal={setResetTradingPasswordModalOpen}
-                is_visible={is_reset_trading_password_modal_visible}
-                is_loading={is_populating_mt5_account_list}
-                verification_code={trading_platform_dxtrade_password_reset || trading_platform_mt5_password_reset}
-            />
-            <MT5AccountTypeModal />
-            <RegulatorsCompareModal />
-            <CompareAccountsModal
-                context={store}
-                is_demo_tab={is_demo}
-                openPasswordModal={openRealPasswordModal}
-                is_real_enabled={has_active_real_account || !is_demo}
-                real_account_creation_unlock_date={real_account_creation_unlock_date}
-                setShouldShowCooldownModal={setShouldShowCooldownModal}
-            />
-            <AccountTransferModal
-                is_modal_open={is_account_transfer_modal_open}
-                toggleModal={toggleAccountTransferModal}
-            />
-            <FailedVerificationModal />
+            {is_jurisdiction_modal_visible && <JurisdictionModal openPasswordModal={openRealPasswordModal} />}
+            {should_show_cfd_password_modal && <CFDPasswordModal platform={platform} />}
+            {is_cfd_verification_modal_visible && <CFDDbviOnBoarding />}
+            <CFDResetPasswordModal platform={platform} /> {/* a new condition for this hotfix needs to be found */}
+            {is_ctrader_transfer_modal_visible && <CTraderTransferModal />}
+            {has_cfd_error && <CFDServerErrorDialog />}
+            {(is_top_up_virtual_open || is_top_up_virtual_success) && <CFDTopUpDemoModal platform={platform} />}
+            {is_mt5_trade_modal_visible && (
+                <MT5TradeModal
+                    is_open={is_mt5_trade_modal_visible}
+                    onPasswordManager={togglePasswordManagerModal}
+                    toggleModal={toggleMT5TradeModal}
+                    is_eu_user={(is_logged_in && is_eu) || (!is_logged_in && is_eu_country)}
+                    is_demo={is_demo}
+                />
+            )}
+            {password_manager.is_visible && (
+                <CFDPasswordManagerModal
+                    is_visible={password_manager.is_visible}
+                    selected_login={password_manager.selected_login}
+                    selected_account_group={password_manager.selected_account_group}
+                    selected_account_type={password_manager.selected_account_type}
+                    selected_server={password_manager.selected_server}
+                    platform={platform}
+                    toggleModal={togglePasswordManagerModal}
+                />
+            )}
+            {is_reset_trading_password_modal_visible && (
+                <ResetTradingPasswordModal
+                    platform={trading_platform_dxtrade_password_reset ? 'dxtrade' : 'mt5'}
+                    enableApp={enableApp}
+                    disableApp={disableApp}
+                    toggleResetTradingPasswordModal={setCFDPasswordResetModal}
+                    is_visible={is_reset_trading_password_modal_visible}
+                    is_loading={is_populating_mt5_account_list}
+                    verification_code={trading_platform_dxtrade_password_reset || trading_platform_mt5_password_reset}
+                />
+            )}
+            {(is_mt5_migration_modal_open || !!mt5_migration_error) && <MT5MigrationModal />}
+            {is_regulators_compare_modal_visible && <RegulatorsCompareModal />}
+            {is_account_transfer_modal_open && (
+                <AccountTransferModal
+                    is_modal_open={is_account_transfer_modal_open}
+                    toggleModal={toggleAccountTransferModal}
+                />
+            )}
+            {is_failed_verification_modal_visible && <FailedVerificationModal />}
+            {!should_show_effortless_login_modal && (
+                <React.Fragment>
+                    {is_wallet_migration_failed && <WalletsMigrationFailed />}
+                    {(is_eligible || is_real_wallets_upgrade_on || is_in_progress) && <WalletsUpgradeModal />}
+                </React.Fragment>
+            )}
+            {is_setup_real_account_or_go_to_demo_modal_visible && <SetupRealAccountOrGoToDemoModal />}
         </React.Fragment>
     );
 };

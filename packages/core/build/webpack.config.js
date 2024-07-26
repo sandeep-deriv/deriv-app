@@ -5,7 +5,6 @@ const { openChromeBasedOnPlatform } = require('./helpers');
 module.exports = function (env) {
     const base = env && env.base && env.base !== true ? `/${env.base}/` : '/';
     const sub_path = env && env.open && env.open !== true ? env.open : '';
-    const is_qawolf = env && env.IS_QAWOLF && JSON.parse(env.IS_QAWOLF);
 
     return {
         context: path.resolve(__dirname, '../src'),
@@ -13,15 +12,15 @@ module.exports = function (env) {
             publicPath: base,
             open: openChromeBasedOnPlatform(process.platform),
             openPage: sub_path,
-            host: is_qawolf ? 'localhost' : 'localhost.binary.sx',
-            https: !is_qawolf,
-            port: is_qawolf ? 3000 : 443,
+            host: 'localhost',
+            https: true,
+            port: 8443,
             historyApiFallback: true,
             stats: {
                 colors: true,
             },
         },
-        devtool: IS_RELEASE ? undefined : 'eval-cheap-module-source-map',
+        devtool: IS_RELEASE ? 'source-map' : 'eval-cheap-module-source-map',
         entry: './index.tsx',
         mode: IS_RELEASE ? 'production' : 'development',
         module: {
@@ -37,11 +36,12 @@ module.exports = function (env) {
             minimizer: MINIMIZERS,
             splitChunks: {
                 chunks: 'all',
-                minSize: 102400,
+                minSize: 100000,
                 minSizeReduction: 102400,
                 minChunks: 1,
-                maxAsyncRequests: 5,
-                maxInitialRequests: 3,
+                maxSize: 2500000,
+                maxAsyncRequests: 30,
+                maxInitialRequests: 30,
                 automaticNameDelimiter: '~',
                 enforceSizeThreshold: 500000,
                 cacheGroups: {

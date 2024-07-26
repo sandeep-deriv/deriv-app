@@ -1,33 +1,39 @@
-import { useState } from 'react';
-import { useWS } from '@deriv/api';
+import { useCallback, useState } from 'react';
+import { useRequest } from '@deriv/api';
 import { useStore } from '@deriv/stores';
-import type { TSocketEndpoints } from '@deriv/api/types';
 import useCountdown from './useCountdown';
 
 const RESEND_COUNTDOWN = 60;
 
-export type TEmailVerificationType = TSocketEndpoints['verify_email']['request']['type'];
-
-const useVerifyEmail = (type: TEmailVerificationType) => {
-    const WS = useWS('verify_email');
+/**
+ * @deprecated Please use useVerifyEmail from @deriv/api instead
+ */
+const useVerifyEmail = (
+    type: Parameters<ReturnType<typeof useRequest<'verify_email'>>['mutate']>[0]['payload']['type']
+) => {
+    const WS = useRequest('verify_email');
     const counter = useCountdown({ from: RESEND_COUNTDOWN });
     const { client } = useStore();
     const [sent_count, setSentCount] = useState(0);
 
-    const send = () => {
-        if (!client.email) return;
-        if (counter.is_running) return;
+    const send = useCallback(
+        (email?: Parameters<ReturnType<typeof useRequest<'verify_email'>>['mutate']>[0]['payload']['verify_email']) => {
+            const request_email = email ?? client.email;
+            if (!request_email) return;
+            if (counter.is_running) return;
 
-        counter.reset();
-        counter.start();
+            counter.reset();
+            counter.start();
 
-        setSentCount(old => old + 1);
+            setSentCount(count => count + 1);
 
-        WS.send({ verify_email: client.email, type });
-    };
+            WS.mutate({ payload: { verify_email: request_email, type } });
+        },
+        [WS, client.email, counter, type]
+    );
 
     return {
-        is_loading: WS.is_loading,
+        is_loading: WS.isLoading,
         error: WS.error,
         data: WS.data,
         counter: counter.count,

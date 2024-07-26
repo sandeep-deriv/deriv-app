@@ -1,14 +1,18 @@
 import React from 'react';
-import { action, computed, observable, reaction, makeObservable } from 'mobx';
-import { isEmptyObject, isMobile, toMoment } from '@deriv/shared';
+import { action, computed, makeObservable, observable, reaction } from 'mobx';
+
+import { isEmptyObject, isMobile, routes, toMoment } from '@deriv/shared';
+
+import { Localize, localize } from 'Components/i18next';
+import { api_error_codes } from 'Constants/api-error-codes';
+import { buy_sell } from 'Constants/buy-sell';
+import { order_list } from 'Constants/order-list';
 import BaseStore from 'Stores/base_store';
-import { localize, Localize } from 'Components/i18next';
 import { convertToMillis, getFormattedDateString } from 'Utils/date-time';
 import { createExtendedOrderDetails } from 'Utils/orders';
 import { init as WebsocketInit, requestWS, subscribeWS } from 'Utils/websocket';
-import { order_list } from 'Constants/order-list';
-import { buy_sell } from 'Constants/buy-sell';
-import { api_error_codes } from '../constants/api-error-codes';
+
+import { get, init } from 'Utils/server_time';
 
 export default class GeneralStore extends BaseStore {
     active_index = 0;
@@ -22,31 +26,39 @@ export default class GeneralStore extends BaseStore {
     balance;
     cancels_remaining = null;
     contact_info = '';
+    counterparty_advert_id = '';
+    counterparty_advertiser_id = null;
+    default_advert_description = '';
+    error_code = '';
+    external_stores = {};
     feature_level = null;
+    formik_ref = null;
     inactive_notification_count = 0;
     is_advertiser = false;
     is_advertiser_blocked = null;
+    is_advertiser_info_subscribed = false;
     is_blocked = false;
     is_block_unblock_user_loading = false;
     is_block_user_modal_open = false;
-    is_high_risk_fully_authed_without_fa = false;
+    is_high_risk = false;
     is_listed = false;
-    is_loading = false;
-    is_modal_open = false;
+    is_loading = true;
     is_p2p_blocked_for_pa = false;
+    is_p2p_user = null;
     is_restricted = false;
     nickname = null;
     nickname_error = '';
-    notification_count = 0;
     order_table_type = order_list.ACTIVE;
     orders = [];
     parameters = null;
     payment_info = '';
+    p2p_poa_required = false;
+    poa_authenticated_with_idv = false;
+    poa_status = null;
     poi_status = null;
-    props = {};
-    review_period;
+    saved_form_state = null;
     should_show_real_name = false;
-    should_show_popup = false;
+    should_show_poa = false;
     user_blocked_count = 0;
     user_blocked_until = null;
 
@@ -60,6 +72,11 @@ export default class GeneralStore extends BaseStore {
     ws_subscriptions = {};
     service_token_timeout;
 
+    server_time = {
+        get,
+        init,
+    };
+
     constructor(root_store) {
         // TODO: [mobx-undecorate] verify the constructor arguments and the arguments of this automatically generated super call
         super(root_store);
@@ -68,56 +85,62 @@ export default class GeneralStore extends BaseStore {
             active_index: observable,
             active_notification_count: observable,
             advertiser_id: observable,
+            advertiser_info: observable,
             advertiser_buy_limit: observable,
             advertiser_sell_limit: observable,
             advertiser_relations_response: observable, //TODO: Remove this when backend has fixed is_blocked flag issue
             block_unblock_user_error: observable,
             balance: observable,
+            contact_info: observable,
+            counterparty_advert_id: observable,
+            counterparty_advertiser_id: observable,
+            default_advert_description: observable,
+            external_stores: observable,
             feature_level: observable,
+            formik_ref: observable,
+            error_code: observable,
             inactive_notification_count: observable,
             is_advertiser: observable,
             is_advertiser_blocked: observable,
+            is_advertiser_info_subscribed: observable,
             is_blocked: observable,
             is_block_unblock_user_loading: observable,
             is_block_user_modal_open: observable,
+            is_high_risk: observable,
             is_listed: observable,
             is_loading: observable,
+            is_p2p_user: observable,
             is_p2p_blocked_for_pa: observable,
             is_restricted: observable,
             nickname: observable,
             nickname_error: observable,
-            notification_count: observable,
             order_table_type: observable,
             orders: observable,
             parameters: observable,
+            p2p_poa_required: observable,
+            poa_authenticated_with_idv: observable,
+            poa_status: observable,
             poi_status: observable,
-            props: observable.ref,
-            review_period: observable,
+            saved_form_state: observable,
             should_show_real_name: observable,
-            should_show_popup: observable,
+            should_show_poa: observable,
             user_blocked_count: observable,
             user_blocked_until: observable,
-            is_high_risk_fully_authed_without_fa: observable,
-            is_modal_open: observable,
-            client: computed,
-            current_focus: computed,
-            setCurrentFocus: computed,
+            active_tab_route: computed,
             blocked_until_date_time: computed,
             is_active_tab: computed,
             is_barred: computed,
-            is_my_profile_tab_visible: computed,
+            is_form_modified: computed,
             should_show_dp2p_blocked: computed,
             blockUnblockUser: action.bound,
             createAdvertiser: action.bound,
-            getWebsiteStatus: action.bound,
+            setCounterpartyAdvertiserId: action.bound,
             handleNotifications: action.bound,
-            redirectToOrderDetails: action.bound,
+            setP2POrderTab: action.bound,
             showCompletedOrderNotification: action.bound,
             handleTabClick: action.bound,
             onMount: action.bound,
-            subscribeToLocalCurrency: action.bound,
             onUnmount: action.bound,
-            onNicknamePopupClose: action.bound,
             redirectTo: action.bound,
             setActiveIndex: action.bound,
             setActiveNotificationCount: action.bound,
@@ -125,52 +148,67 @@ export default class GeneralStore extends BaseStore {
             setAdvertiserId: action.bound,
             setAdvertiserBuyLimit: action.bound,
             setAdvertiserSellLimit: action.bound,
-            setAppProps: action.bound,
             setAdvertiserRelationsResponse: action.bound, //TODO: Remove this when backend has fixed is_blocked flag issue
+            setCounterpartyAdvertId: action.bound,
+            setErrorCode: action.bound,
+            setExternalStores: action.bound,
             setFeatureLevel: action.bound,
+            setFormikRef: action.bound,
+            setSavedFormState: action.bound,
+            saveFormState: action.bound,
             setInactiveNotificationCount: action.bound,
             setIsAdvertiser: action.bound,
+            setIsAdvertiserInfoSubscribed: action.bound,
             setIsBlocked: action.bound,
-            setIsHighRiskFullyAuthedWithoutFa: action.bound,
+            setIsHighRisk: action.bound,
             setIsListed: action.bound,
             setIsLoading: action.bound,
             setIsP2pBlockedForPa: action.bound,
+            setIsP2PUser: action.bound,
             setIsRestricted: action.bound,
-            setIsModalOpen: action.bound,
             setNickname: action.bound,
             setNicknameError: action.bound,
-            setNotificationCount: action.bound,
             setOrderTableType: action.bound,
-            setP2PConfig: action.bound,
-            setP2pOrderList: action.bound,
+            setP2pPoaRequired: action.bound,
+            setPoaAuthenticatedWithIdv: action.bound,
             setParameters: action.bound,
+            setPoaStatus: action.bound,
             setPoiStatus: action.bound,
-            setReviewPeriod: action.bound,
             setBlockUnblockUserError: action.bound,
             setIsAdvertiserBlocked: action.bound,
             setIsBlockUnblockUserLoading: action.bound,
-            setIsBlockUserModalOpen: action.bound,
             setShouldShowRealName: action.bound,
-            setShouldShowPopup: action.bound,
+            setShouldShowPoa: action.bound,
             setUserBlockedCount: action.bound,
             setUserBlockedUntil: action.bound,
             setWebsocketInit: action.bound,
-            toggleNicknamePopup: action.bound,
+            showDailyLimitIncreaseNotification: action.bound,
             updateAdvertiserInfo: action.bound,
             updateP2pNotifications: action.bound,
         });
+
+        reaction(
+            () => this.is_barred,
+            () => {
+                const { my_profile_store } = this.root_store;
+                if (!this.is_barred) this.setBlockUnblockUserError('');
+                my_profile_store.setSearchTerm('');
+                my_profile_store.getTradePartnersList({ startIndex: 0 }, true);
+            }
+        );
     }
 
-    get client() {
-        return { ...this.props?.client } || {};
-    }
-
-    get current_focus() {
-        return this.props?.current_focus;
-    }
-
-    get setCurrentFocus() {
-        return this.props?.setCurrentFocus;
+    get active_tab_route() {
+        switch (this.active_index) {
+            case 1:
+                return routes.p2p_orders;
+            case 2:
+                return routes.p2p_my_ads;
+            case 3:
+                return routes.p2p_my_profile;
+            default:
+                return routes.p2p_buy_sell;
+        }
     }
 
     get blocked_until_date_time() {
@@ -185,12 +223,12 @@ export default class GeneralStore extends BaseStore {
         return !!this.user_blocked_until;
     }
 
-    get is_my_profile_tab_visible() {
-        return this.is_advertiser && !this.root_store.my_profile_store.should_hide_my_profile_tab;
+    get is_form_modified() {
+        return this.form_state?.dirty || this.saved_form_state;
     }
 
     get should_show_dp2p_blocked() {
-        return this.is_blocked || this.is_high_risk_fully_authed_without_fa;
+        return this.is_blocked || this.is_high_risk || this.is_p2p_blocked_for_pa || this.should_show_poa;
     }
 
     blockUnblockUser(should_block, advertiser_id, should_set_is_counterparty_blocked = true) {
@@ -202,7 +240,7 @@ export default class GeneralStore extends BaseStore {
         }).then(response => {
             if (response) {
                 if (!response.error) {
-                    this.setIsBlockUserModalOpen(false);
+                    this.hideModal();
                     if (should_set_is_counterparty_blocked) {
                         const { p2p_advertiser_relations } = response;
 
@@ -214,19 +252,22 @@ export default class GeneralStore extends BaseStore {
                         );
                     }
                 } else {
-                    this.setBlockUnblockUserError(response.error.message);
+                    this.hideModal();
+                    const { code, message } = response.error;
+                    this.setErrorCode(code);
+                    this.setBlockUnblockUserError(message);
                 }
             }
             this.setIsBlockUnblockUserLoading(false);
         });
     }
 
-    createAdvertiser(name) {
-        requestWS({
+    async createAdvertiser(name) {
+        await requestWS({
             p2p_advertiser_create: 1,
             name,
         }).then(response => {
-            const { sendbird_store, buy_sell_store } = this.root_store;
+            const { sendbird_store } = this.root_store;
             const { error, p2p_advertiser_create } = response;
             const {
                 daily_buy,
@@ -235,6 +276,7 @@ export default class GeneralStore extends BaseStore {
                 daily_sell_limit,
                 id,
                 is_approved,
+                is_listed,
                 name: advertiser_name,
             } = p2p_advertiser_create || {};
 
@@ -246,21 +288,24 @@ export default class GeneralStore extends BaseStore {
                 this.setAdvertiserBuyLimit(daily_buy_limit - daily_buy);
                 this.setAdvertiserSellLimit(daily_sell_limit - daily_sell);
                 this.setIsAdvertiser(!!is_approved);
+                this.setIsListed(!!is_listed);
                 this.setNickname(advertiser_name);
                 this.setNicknameError(undefined);
                 sendbird_store.handleP2pAdvertiserInfo(response);
-                this.toggleNicknamePopup();
-                buy_sell_store.hideVerification();
+                this.hideModal();
             }
         });
     }
 
+    /**
+     * @deprecated Please use 'LocalStorageUtils.getValue' from '@deriv-com/utils' instead of this.
+     */
     getLocalStorageSettings = () => {
         return JSON.parse(localStorage.getItem('p2p_settings') || '{}');
     };
 
     getLocalStorageSettingsForLoginId() {
-        const local_storage_settings = this.getLocalStorageSettings()[this.client.loginid];
+        const local_storage_settings = this.getLocalStorageSettings()[this.external_stores?.client?.loginid];
 
         if (isEmptyObject(local_storage_settings)) {
             return { is_cached: false, notifications: [] };
@@ -269,27 +314,16 @@ export default class GeneralStore extends BaseStore {
         return local_storage_settings;
     }
 
-    getWebsiteStatus() {
-        requestWS({ website_status: 1 }).then(response => {
-            if (response && !response.error) {
-                const { buy_sell_store } = this.root_store;
-                const { p2p_config } = response.website_status;
-                const { feature_level, local_currencies, review_period } = p2p_config || {};
-
-                this.setFeatureLevel(feature_level);
-                buy_sell_store.setLocalCurrencies(local_currencies);
-                this.setReviewPeriod(review_period);
-            }
-        });
-    }
-
     handleNotifications(old_orders, new_orders) {
         const { order_store } = this.root_store;
-        const { client, props } = this;
         const { is_cached, notifications } = this.getLocalStorageSettingsForLoginId();
 
-        new_orders.forEach(new_order => {
-            const order_info = createExtendedOrderDetails(new_order, client.loginid, props.server_time);
+        new_orders?.forEach(new_order => {
+            const order_info = createExtendedOrderDetails(
+                new_order,
+                this.external_stores.client.loginid,
+                this.server_time
+            );
             const notification = notifications.find(n => n.order_id === new_order.id);
             const old_order = old_orders.find(o => o.id === new_order.id);
             const is_current_order = new_order.id === order_store.order_id;
@@ -312,14 +346,14 @@ export default class GeneralStore extends BaseStore {
                         if (
                             type === buy_sell.BUY &&
                             status === 'completed' &&
-                            client_details.loginid === client.loginid
+                            client_details.loginid === this.external_stores.client.loginid
                         )
                             this.showCompletedOrderNotification(advertiser_details.name, id);
 
                         if (
                             type === buy_sell.SELL &&
                             status === 'completed' &&
-                            advertiser_details.loginid === client.loginid
+                            advertiser_details.loginid === this.external_stores.client.loginid
                         )
                             this.showCompletedOrderNotification(client_details.name, id);
                     } else {
@@ -349,7 +383,7 @@ export default class GeneralStore extends BaseStore {
         this.updateP2pNotifications(notifications);
     }
 
-    redirectToOrderDetails(order_id) {
+    setP2POrderTab(order_id) {
         const { order_store } = this.root_store;
         this.redirectTo('orders');
         this.setOrderTableType(order_list.INACTIVE);
@@ -358,18 +392,18 @@ export default class GeneralStore extends BaseStore {
 
     showCompletedOrderNotification(advertiser_name, order_id) {
         const { order_store } = this.root_store;
-        const notification_key = `order-${order_id}`;
+        const notification_key = `p2p_order_${order_id}`;
 
         // we need to refresh notifications in notifications-store in the case of a bug when user closes the notification, the notification count is not synced up with the closed notification
-        this.props.refreshNotifications();
+        this.external_stores?.notifications.refreshNotifications();
 
-        this.props.addNotificationMessage({
+        this.external_stores?.notifications.addNotificationMessage({
             action: {
                 onClick: () => {
                     if (order_store.order_id === order_id) {
                         order_store.setIsRatingModalOpen(true);
                     }
-                    this.redirectToOrderDetails(order_id);
+                    this.setP2POrderTab(order_id);
                 },
                 text: localize('Give feedback'),
             },
@@ -386,6 +420,16 @@ export default class GeneralStore extends BaseStore {
         });
     }
 
+    showDailyLimitIncreaseNotification() {
+        const { upgradable_daily_limits } = this.advertiser_info;
+        const { max_daily_buy, max_daily_sell } = upgradable_daily_limits;
+        const { client, notifications } = this.external_stores;
+
+        notifications.addNotificationMessage(
+            notifications.client_notifications.p2p_daily_limit_increase(client.currency, max_daily_buy, max_daily_sell)
+        );
+    }
+
     handleTabClick(idx) {
         this.setActiveIndex(idx);
         this.setParameters(null);
@@ -394,68 +438,76 @@ export default class GeneralStore extends BaseStore {
     onMount() {
         this.setIsLoading(true);
         this.setIsBlocked(false);
-        this.setIsHighRiskFullyAuthedWithoutFa(false);
+        this.setIsHighRisk(false);
         this.setIsP2pBlockedForPa(false);
 
         this.disposeUserBarredReaction = reaction(
             () => this.user_blocked_until,
             blocked_until => {
                 if (typeof blocked_until === 'number') {
-                    const server_time = this.props.server_time.get();
+                    const server_time = this.server_time.get();
                     const blocked_until_moment = toMoment(blocked_until);
 
-                    this.user_blocked_timeout = setTimeout(() => {
-                        this.setUserBlockedUntil(null);
-                    }, blocked_until_moment.diff(server_time));
+                    // Need isAfter instead of setTimeout as setTimeout has a max delay of 24.8 days
+                    if (server_time.isAfter(blocked_until_moment)) this.setUserBlockedUntil(null);
                 }
             }
         );
 
         requestWS({ get_account_status: 1 }).then(({ error, get_account_status }) => {
-            const hasStatuses = statuses => statuses.every(status => get_account_status.status.includes(status));
+            const { authentication = {}, p2p_poa_required, p2p_status, status = [] } = get_account_status || {};
+            const { document, identity } = authentication;
+            this.setIsP2PUser(p2p_status !== 'none' && p2p_status !== 'perm_ban');
 
+            if (status.includes('cashier_locked')) {
+                this.setIsBlocked(true);
+                this.hideModal?.();
+            } else {
+                this.setP2pPoaRequired(p2p_poa_required);
+                this.setPoaAuthenticatedWithIdv(status.includes('poa_authenticated_with_idv'));
+                this.setPoaStatus(document.status);
+                this.setPoiStatus(identity.status);
+            }
+
+            const hasStatuses = statuses => statuses?.every(status => get_account_status.status.includes(status));
+
+            const is_authenticated = hasStatuses(['authenticated']);
             const is_blocked_for_pa = hasStatuses(['p2p_blocked_for_pa']);
+            const is_fa_not_complete = hasStatuses(['financial_assessment_not_complete']);
 
             if (error) {
-                this.setIsHighRiskFullyAuthedWithoutFa(false);
+                this.setIsHighRisk(false);
                 this.setIsBlocked(false);
                 this.setIsP2pBlockedForPa(false);
+            } else if (get_account_status.p2p_status === 'perm_ban') {
+                this.setIsBlocked(true);
             } else if (get_account_status.risk_classification === 'high') {
                 const is_cashier_locked = hasStatuses(['cashier_locked']);
-
-                const is_fully_authenticated = hasStatuses(['age_verification', 'authenticated']);
                 const is_not_fully_authenticated = !hasStatuses(['age_verification', 'authenticated']);
-
                 const is_fully_authed_but_poi_expired = hasStatuses(['authenticated', 'document_expired']);
-                const is_fully_authed_but_needs_fa =
-                    is_fully_authenticated && hasStatuses(['financial_assessment_not_complete']);
-
                 const is_not_fully_authenticated_and_fa_not_completed =
-                    is_not_fully_authenticated && hasStatuses(['financial_assessment_not_complete']);
+                    is_not_fully_authenticated && is_fa_not_complete;
 
-                if (is_fully_authed_but_needs_fa) {
-                    // First priority: Send user to Financial Assessment if they have to submit it.
-                    this.setIsHighRiskFullyAuthedWithoutFa(true);
-                } else if (
-                    is_cashier_locked ||
-                    is_not_fully_authenticated ||
-                    is_fully_authed_but_poi_expired ||
-                    is_not_fully_authenticated_and_fa_not_completed
+                if (
+                    is_authenticated &&
+                    (is_cashier_locked ||
+                        is_not_fully_authenticated ||
+                        is_fully_authed_but_poi_expired ||
+                        is_not_fully_authenticated_and_fa_not_completed)
                 ) {
-                    // Second priority: If user is blocked, don't bother asking them to submit FA.
                     this.setIsBlocked(true);
                 }
+
+                if (!is_authenticated && !is_fa_not_complete) this.setShouldShowPoa(true);
+
+                if (is_fa_not_complete) this.setIsHighRisk(true);
             }
 
             if (is_blocked_for_pa) {
                 this.setIsP2pBlockedForPa(true);
             }
 
-            this.setIsLoading(false);
-
             const { sendbird_store } = this.root_store;
-
-            this.setP2PConfig();
 
             this.ws_subscriptions = {
                 advertiser_subscription: subscribeWS(
@@ -465,95 +517,25 @@ export default class GeneralStore extends BaseStore {
                     },
                     [this.updateAdvertiserInfo, response => sendbird_store.handleP2pAdvertiserInfo(response)]
                 ),
-                order_list_subscription: subscribeWS(
-                    {
-                        p2p_order_list: 1,
-                        subscribe: 1,
-                        offset: 0,
-                        limit: this.list_item_limit,
-                    },
-                    [this.setP2pOrderList]
-                ),
-                exchange_rate_subscription: subscribeWS(
-                    {
-                        exchange_rates: 1,
-                        base_currency: this.client.currency,
-                        subscribe: 1,
-                        target_currency:
-                            this.root_store.buy_sell_store.selected_local_currency ??
-                            this.client.local_currency_config?.currency,
-                    },
-                    [this.root_store.floating_rate_store.fetchExchangeRate]
-                ),
             };
-
-            this.disposeLocalCurrencyReaction = reaction(
-                () => [this.root_store.buy_sell_store.local_currency, this.active_index],
-                () => {
-                    this.subscribeToLocalCurrency();
-                }
-            );
-
-            if (this.ws_subscriptions) {
-                this.setIsLoading(false);
-            }
         });
-    }
-
-    subscribeToLocalCurrency() {
-        const { floating_rate_store, buy_sell_store } = this.root_store;
-        const client_currency = this.client.local_currency_config?.currency;
-
-        this.ws_subscriptions?.exchange_rate_subscription?.unsubscribe?.();
-        this.ws_subscriptions.exchange_rate_subscription = subscribeWS(
-            {
-                exchange_rates: 1,
-                base_currency: this.client.currency,
-                subscribe: 1,
-                target_currency:
-                    this.active_index > 0 ? client_currency : buy_sell_store.local_currency ?? client_currency,
-            },
-            [floating_rate_store.fetchExchangeRate]
-        );
     }
 
     onUnmount() {
         clearTimeout(this.service_token_timeout);
         clearTimeout(this.user_blocked_timeout);
 
-        Object.keys(this.ws_subscriptions).forEach(key => this.ws_subscriptions[key].unsubscribe());
+        Object.keys(this.ws_subscriptions).forEach(key => this.ws_subscriptions[key]?.unsubscribe());
 
         if (typeof this.disposeUserBarredReaction === 'function') {
             this.disposeUserBarredReaction();
         }
 
-        if (typeof this.disposeLocalCurrencyReaction === 'function') {
-            this.disposeLocalCurrencyReaction();
-        }
-
         this.setActiveIndex(0);
-        this.props.refreshNotifications();
-        this.props.filterNotificationMessages();
+        this.external_stores?.notifications.refreshNotifications();
+        this.external_stores?.notifications.filterNotificationMessages();
+        this.setIsLoading(true);
     }
-
-    onNicknamePopupClose() {
-        this.setShouldShowPopup(false);
-    }
-
-    poiStatusText = status => {
-        switch (status) {
-            case 'pending':
-            case 'rejected':
-                return <Localize i18n_default_text='Check your verification status.' />;
-            case 'none':
-            default:
-                return (
-                    <Localize i18n_default_text='We’ll need you to upload your documents to verify your identity.' />
-                );
-            case 'verified':
-                return <Localize i18n_default_text='Identity verification is complete.' />;
-        }
-    };
 
     redirectTo(path_name, params = null) {
         this.setActiveIndex(this.path[path_name]);
@@ -588,10 +570,6 @@ export default class GeneralStore extends BaseStore {
         this.advertiser_sell_limit = advertiser_sell_limit;
     }
 
-    setAppProps(props) {
-        this.props = props;
-    }
-
     //TODO: Remove this when backend has fixed is_blocked flag issue
     setAdvertiserRelationsResponse(advertiser_relations_response) {
         this.advertiser_relations_response = advertiser_relations_response;
@@ -605,12 +583,40 @@ export default class GeneralStore extends BaseStore {
         this.contact_info = contact_info;
     }
 
+    setCounterpartyAdvertId(counterparty_advert_id) {
+        this.counterparty_advert_id = counterparty_advert_id;
+    }
+
+    setCounterpartyAdvertiserId(counterparty_advertiser_id) {
+        this.counterparty_advertiser_id = counterparty_advertiser_id;
+    }
+
     setDefaultAdvertDescription(default_advert_description) {
         this.default_advert_description = default_advert_description;
     }
 
+    setErrorCode(error_code) {
+        this.error_code = error_code;
+    }
+
+    setExternalStores(external_stores) {
+        this.external_stores = external_stores;
+    }
+
     setFeatureLevel(feature_level) {
         this.feature_level = feature_level;
+    }
+
+    setFormikRef(formik_ref) {
+        this.formik_ref = formik_ref;
+    }
+
+    setSavedFormState(saved_form_state) {
+        this.saved_form_state = saved_form_state;
+    }
+
+    saveFormState() {
+        this.setSavedFormState(this.form_state);
     }
 
     setInactiveNotificationCount(inactive_notification_count) {
@@ -625,20 +631,20 @@ export default class GeneralStore extends BaseStore {
         this.is_advertiser_blocked = is_advertiser_blocked;
     }
 
-    setIsBlocked(is_blocked) {
-        this.is_blocked = is_blocked;
+    setIsAdvertiserInfoSubscribed(is_advertiser_info_subscribed) {
+        this.is_advertiser_info_subscribed = is_advertiser_info_subscribed;
     }
 
-    setIsBlockUserModalOpen(is_block_user_modal_open) {
-        this.is_block_user_modal_open = is_block_user_modal_open;
+    setIsBlocked(is_blocked) {
+        this.is_blocked = is_blocked;
     }
 
     setIsBlockUnblockUserLoading(is_block_unblock_user_loading) {
         this.is_block_unblock_user_loading = is_block_unblock_user_loading;
     }
 
-    setIsHighRiskFullyAuthedWithoutFa(is_high_risk_fully_authed_without_fa) {
-        this.is_high_risk_fully_authed_without_fa = is_high_risk_fully_authed_without_fa;
+    setIsHighRisk(is_high_risk) {
+        this.is_high_risk = is_high_risk;
     }
 
     setIsListed(is_listed) {
@@ -653,12 +659,12 @@ export default class GeneralStore extends BaseStore {
         this.is_p2p_blocked_for_pa = is_p2p_blocked_for_pa;
     }
 
-    setIsRestricted(is_restricted) {
-        this.is_restricted = is_restricted;
+    setIsP2PUser(is_p2p_user) {
+        this.is_p2p_user = is_p2p_user;
     }
 
-    setIsModalOpen(is_modal_open) {
-        this.is_modal_open = is_modal_open;
+    setIsRestricted(is_restricted) {
+        this.is_restricted = is_restricted;
     }
 
     setNickname(nickname) {
@@ -669,68 +675,10 @@ export default class GeneralStore extends BaseStore {
         this.nickname_error = nickname_error;
     }
 
-    setNotificationCount(notification_count) {
-        this.notification_count = notification_count;
-    }
-
     setOrderTableType(order_table_type) {
         const { order_store } = this.root_store;
         order_store.setIsLoading(true);
         this.order_table_type = order_table_type;
-    }
-
-    setP2PConfig() {
-        const { floating_rate_store } = this.root_store;
-        requestWS({ website_status: 1 }).then(response => {
-            if (!!response && response.error) {
-                floating_rate_store.setApiErrorMessage(response.error.message);
-            } else {
-                const {
-                    fixed_rate_adverts,
-                    float_rate_adverts,
-                    float_rate_offset_limit,
-                    fixed_rate_adverts_end_date,
-                    override_exchange_rate,
-                } = response.website_status.p2p_config;
-                floating_rate_store.setFixedRateAdvertStatus(fixed_rate_adverts);
-                floating_rate_store.setFloatingRateAdvertStatus(float_rate_adverts);
-                floating_rate_store.setFloatRateOffsetLimit(float_rate_offset_limit);
-                floating_rate_store.setFixedRateAdvertsEndDate(fixed_rate_adverts_end_date || null);
-                floating_rate_store.setApiErrorMessage(null);
-                if (override_exchange_rate) floating_rate_store.setOverrideExchangeRate(override_exchange_rate);
-            }
-        });
-    }
-
-    setP2pOrderList(order_response) {
-        if (order_response.error) {
-            this.ws_subscriptions.order_list_subscription.unsubscribe();
-            return;
-        }
-
-        const { p2p_order_list, p2p_order_info } = order_response;
-        const { order_store } = this.root_store;
-
-        if (p2p_order_list) {
-            const { list } = p2p_order_list;
-            // it's an array of orders from p2p_order_list
-            this.handleNotifications(order_store.orders, list);
-            list.forEach(order => order_store.syncOrder(order));
-        } else if (p2p_order_info) {
-            // it's a single order from p2p_order_info
-            const idx_order_to_update = order_store.orders.findIndex(order => order.id === p2p_order_info.id);
-            const updated_orders = [...order_store.orders];
-            // if it's a new order, add it to the top of the list
-            if (idx_order_to_update < 0) {
-                updated_orders.unshift(p2p_order_info);
-            } else {
-                // otherwise, update the correct order
-                updated_orders[idx_order_to_update] = p2p_order_info;
-            }
-
-            this.handleNotifications(order_store.orders, updated_orders);
-            order_store.syncOrder(p2p_order_info);
-        }
     }
 
     setParameters(parameters) {
@@ -741,20 +689,28 @@ export default class GeneralStore extends BaseStore {
         this.payment_info = payment_info;
     }
 
-    setPoiStatus(poi_status) {
-        this.poi_status = poi_status;
+    setP2pPoaRequired(p2p_poa_required) {
+        this.p2p_poa_required = p2p_poa_required;
     }
 
-    setReviewPeriod(review_period) {
-        this.review_period = review_period;
+    setPoaAuthenticatedWithIdv(poa_authenticated_with_idv) {
+        this.poa_authenticated_with_idv = poa_authenticated_with_idv;
+    }
+
+    setPoaStatus(poa_status) {
+        this.poa_status = poa_status;
+    }
+
+    setPoiStatus(poi_status) {
+        this.poi_status = poi_status;
     }
 
     setShouldShowRealName(should_show_real_name) {
         this.should_show_real_name = should_show_real_name;
     }
 
-    setShouldShowPopup(should_show_popup) {
-        this.should_show_popup = should_show_popup;
+    setShouldShowPoa(should_show_poa) {
+        this.should_show_poa = should_show_poa;
     }
 
     setUserBlockedCount(user_blocked_count) {
@@ -768,11 +724,6 @@ export default class GeneralStore extends BaseStore {
     setWebsocketInit = websocket => {
         WebsocketInit(websocket);
     };
-
-    toggleNicknamePopup() {
-        this.setShouldShowPopup(!this.should_show_popup);
-        this.setNicknameError(undefined);
-    }
 
     updateAdvertiserInfo(response) {
         const {
@@ -791,6 +742,7 @@ export default class GeneralStore extends BaseStore {
             name,
             payment_info,
             show_name,
+            upgradable_daily_limits,
         } = response?.p2p_advertiser_info || {};
 
         if (!response.error) {
@@ -808,6 +760,10 @@ export default class GeneralStore extends BaseStore {
             this.setUserBlockedCount(blocked_by_count);
             this.setPaymentInfo(payment_info);
             this.setShouldShowRealName(!!show_name);
+            this.setIsRestricted(false);
+            this.setIsAdvertiserInfoSubscribed(true);
+
+            if (upgradable_daily_limits) this.showDailyLimitIncreaseNotification();
         } else {
             this.ws_subscriptions.advertiser_subscription.unsubscribe();
 
@@ -821,19 +777,21 @@ export default class GeneralStore extends BaseStore {
                 this.setIsAdvertiser(false);
             } else if (response.error.code === api_error_codes.PERMISSION_DENIED) {
                 this.setIsBlocked(true);
-                this.setIsLoading(false);
-                return;
             }
         }
 
-        if (!this.is_advertiser) {
+        this.setIsLoading(false);
+
+        if (!this.is_p2p_user) {
             requestWS({ get_account_status: 1 }).then(account_response => {
                 if (!account_response.error) {
                     const { get_account_status } = account_response;
-                    const { authentication } = get_account_status;
-                    const { identity } = authentication;
+                    const { status } = get_account_status;
 
-                    this.setPoiStatus(identity.status);
+                    if (status.includes('cashier_locked')) {
+                        this.setIsBlocked(true);
+                        this.hideModal();
+                    }
                 }
             });
         }
@@ -851,17 +809,13 @@ export default class GeneralStore extends BaseStore {
         user_settings.notifications = notifications;
 
         const p2p_settings = this.getLocalStorageSettings();
-        p2p_settings[this.client.loginid] = user_settings;
+        p2p_settings[this.external_stores?.client?.loginid] = user_settings;
 
         localStorage.setItem('p2p_settings', JSON.stringify(p2p_settings));
+        window.dispatchEvent(new Event('storage'));
 
-        this.setNotificationCount(notification_count);
         this.setActiveNotificationCount(active_notification_count);
         this.setInactiveNotificationCount(inactive_notification_count);
-
-        if (typeof this.props?.setNotificationCount === 'function') {
-            this.props.setNotificationCount(notification_count);
-        }
     }
 
     validatePopup = values => {
@@ -892,15 +846,7 @@ export default class GeneralStore extends BaseStore {
                 return !v(values[key]);
             });
 
-            if (error_index !== -1) {
-                switch (key) {
-                    case 'nickname':
-                    default: {
-                        errors[key] = nickname_messages[error_index];
-                        break;
-                    }
-                }
-            }
+            if (error_index !== -1) errors[key] = nickname_messages[error_index];
         });
 
         return errors;

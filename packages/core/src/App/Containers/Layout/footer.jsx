@@ -1,20 +1,32 @@
 import React from 'react';
-import { connect } from 'Stores/connect';
-import { routes } from '@deriv/shared';
-import DefaultFooter from './default-footer';
-import TradingHubFooter from './trading-hub-footer';
 import { useLocation } from 'react-router-dom';
+import { useDevice } from '@deriv-com/ui';
+import { routes, isDisabledLandscapeBlockerRoute } from '@deriv/shared';
+import { DesktopWrapper } from '@deriv/components';
+import TradingHubFooter from './trading-hub-footer';
 
-const Footer = ({ is_pre_appstore }) => {
+const Footer = () => {
+    const { isDesktop, isTablet } = useDevice();
     const { pathname } = useLocation();
-    if (is_pre_appstore && pathname !== routes.onboarding) {
-        return <TradingHubFooter />;
-    } else if (pathname === routes.onboarding) {
+    const is_hidden_landscape_blocker = isDisabledLandscapeBlockerRoute(pathname);
+    const is_dtrader_route = pathname === routes.trade;
+    const show_in_tablet_routes = [routes.contract];
+
+    if (pathname === routes.onboarding) {
         return null;
     }
-    return <DefaultFooter />;
+
+    if (is_hidden_landscape_blocker || is_dtrader_route) {
+        if (isDesktop) return <TradingHubFooter />;
+        if (isTablet && show_in_tablet_routes.includes(pathname)) return <TradingHubFooter />;
+        return null;
+    }
+
+    return (
+        <DesktopWrapper>
+            <TradingHubFooter />
+        </DesktopWrapper>
+    );
 };
 
-export default connect(({ client }) => ({
-    is_pre_appstore: client.is_pre_appstore,
-}))(Footer);
+export default Footer;

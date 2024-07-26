@@ -1,6 +1,7 @@
 {
     "extends": "../../tsconfig.json",
     "compilerOptions": {
+        "experimentalDecorators": true,
         "outDir": "./dist",
         "baseUrl": "./",
         "paths": {
@@ -8,8 +9,9 @@
             "Constants/*": ["src/constants/*"],
             "Stores/*": ["src/stores/*"],
             "Utils/*": ["src/utils/*"],
-            "@deriv/*": ["../*/src"]
+            "@deriv/*": ["../*/src"],
+            "Types": ["src/types"],
         }
     },
-    "include": ["src", "../../utils.d.ts"]
+    "include": ["src", "../../utils.d.ts", "src/types/global.d.ts"],
 }

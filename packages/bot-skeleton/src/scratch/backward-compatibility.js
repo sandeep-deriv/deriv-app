@@ -8,6 +8,8 @@ export default class BlockConversion {
         this.blocks_pending_reconnect = {};
         this.workspace = this.createWorkspace();
         this.workspace_variables = {};
+        this.has_market_block = false;
+        this.exception_blocks = ['r_100'];
     }
 
     getConversions() {
@@ -212,7 +214,10 @@ export default class BlockConversion {
             lists_create_with: block_node =>
                 generateGrowingListBlock(block_node, 'lists_create_with', localize('list'), 'VALUE'),
             macda: block_node => generateIndicatorBlock(block_node, 'macda_statement', 'macda'),
-            market: block_node => tradeOptions(block_node),
+            market: block_node => {
+                this.has_market_block = true;
+                return tradeOptions(block_node);
+            },
             rsi: block_node => generateIndicatorBlock(block_node, 'rsi_statement', 'rsi'),
             rsia: block_node => generateIndicatorBlock(block_node, 'rsia_statement', 'rsia'),
             sma: block_node => generateIndicatorBlock(block_node, 'sma_statement', 'sma'),
@@ -352,10 +357,14 @@ export default class BlockConversion {
         // to "Run once at start". Legacy "market" blocks had no such thing as "Run once at start"
         // not moving everything would kill Martingale strategies as they'd be reinitialised each run.
         const trade_definition_block = this.workspace.getTradeDefinitionBlock();
-
+        const has_initialization_block = trade_definition_block.getBlocksInStatement('INITIALIZATION').length > 0;
         if (trade_definition_block) {
             trade_definition_block.getBlocksInStatement('SUBMARKET').forEach(block => {
-                if (block.type !== 'trade_definition_tradeoptions') {
+                if (
+                    block.type !== 'trade_definition_tradeoptions' &&
+                    this.has_market_block &&
+                    !has_initialization_block
+                ) {
                     const last_connection = trade_definition_block.getLastConnectionInStatement('INITIALIZATION');
                     block.unplug(true);
                     last_connection.connect(block.previousConnection);
@@ -392,16 +401,18 @@ export default class BlockConversion {
             return xml;
         }
 
-        const has_illegal_block = this.getIllegalBlocks().some(
-            illegal_block_type => !!xml.querySelector(`block[type="${illegal_block_type}"]`)
-        );
+        const has_illegal_block = this.getIllegalBlocks().some(illegal_block_type => {
+            if (!this.exception_blocks.includes(illegal_block_type)) {
+                return !!xml.querySelector(`block[type="${illegal_block_type}"]`);
+            }
+        });
 
         if (has_illegal_block) {
             if (showIncompatibleStrategyDialog) {
                 showIncompatibleStrategyDialog();
             }
             Blockly.Events.enable();
-            return Blockly.Xml.textToDom('<xml />');
+            return Blockly.utils.xml.textToDom('<xml />');
         }
 
         const variable_nodes = [];
@@ -494,7 +505,8 @@ export default class BlockConversion {
 
         this.workspace.getAllBlocks(true).forEach(block => {
             block.initSvg();
-            block.render();
+            // keep this commneted to fix backward compatibility issue
+            // block.render();
         });
 
         this.workspace.cleanUp();
@@ -520,7 +532,8 @@ export default class BlockConversion {
         const is_old_block = Object.keys(conversions).includes(block_type);
         let block = null;
 
-        const is_collapsed = el_block.getAttribute('collapsed') && el_block.getAttribute('collapsed') === 'true';
+        const is_collapsed =
+            (el_block.getAttribute('collapsed') && el_block.getAttribute('collapsed') === 'true') || false;
         const is_immovable = el_block.getAttribute('movable') && el_block.getAttribute('movable') === 'false';
         const is_undeletable = el_block.getAttribute('deletable') && el_block.getAttribute('deletable') === 'false';
         const is_disabled = el_block.getAttribute('disabled') && el_block.getAttribute('disabled') === 'true';
@@ -640,15 +653,6 @@ export default class BlockConversion {
                             block.nextConnection.connect(sibling_block.previousConnection);
                         });
                     }
-                    break;
-                }
-                case 'comment': {
-                    const is_minimised = el_block_child.getAttribute('pinned') !== 'true';
-                    const comment_text = el_block_child.innerText;
-
-                    block.comment = new Blockly.ScratchBlockComment(block, comment_text, null, 0, 0, is_minimised);
-                    block.comment.iconXY_ = { x: 0, y: 0 };
-                    block.comment.setVisible(true); // Scratch comments are always visible.
                     break;
                 }
                 default:

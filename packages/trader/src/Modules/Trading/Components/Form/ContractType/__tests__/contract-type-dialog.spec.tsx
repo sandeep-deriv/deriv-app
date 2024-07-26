@@ -1,22 +1,22 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import ContractTypeDialog from '../contract-type-dialog.jsx';
-import { isMobile, isDesktop } from '@deriv/shared';
+import ContractTypeDialog from '../contract-type-dialog';
+import { useDevice } from '@deriv-com/ui';
 
-jest.mock('@deriv/shared/src/utils/screen/responsive', () => ({
-    ...jest.requireActual('@deriv/shared/src/utils/screen/responsive'),
-    isMobile: jest.fn(),
-    isDesktop: jest.fn(() => true),
+jest.mock('@deriv-com/ui', () => ({
+    useDevice: jest.fn(() => ({ isMobile: false })),
 }));
 
 const MockContractTypeDialog = () => (
     <ContractTypeDialog
         is_open
         categories={[]}
-        list={[
-            { contract_types: [{ value: 'first-value' }], label: 'first-item' },
-            { contract_types: [{ value: 'second-value' }], label: 'second-item' },
-        ]}
+        onClose={jest.fn()}
+        is_info_dialog_open={false}
+        item={{
+            text: 'test',
+            value: 'test',
+        }}
     >
         <div data-testid='dt_child' />
     </ContractTypeDialog>
@@ -46,8 +46,7 @@ describe('ContractTypeDialog Component', () => {
     });
 
     it('should render "MobileDialog" component in the mobile view', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-        (isDesktop as jest.Mock).mockReturnValue(false);
+        (useDevice as jest.Mock).mockReturnValueOnce({ isMobile: true });
         render(<MockContractTypeDialog />);
         expect(screen.getByTestId('dt_mobile_dialog')).toBeInTheDocument();
     });

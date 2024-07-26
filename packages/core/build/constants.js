@@ -4,7 +4,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebPackPlugin = require('html-webpack-plugin');
 const HtmlWebpackTagsPlugin = require('html-webpack-tags-plugin');
 const PreloadWebpackPlugin = require('preload-webpack-plugin');
-const IgnorePlugin = require('webpack').IgnorePlugin;
+const { IgnorePlugin, DefinePlugin } = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const path = require('path');
@@ -13,8 +13,6 @@ const TerserPlugin = require('terser-webpack-plugin');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const { GenerateSW } = require('workbox-webpack-plugin');
-const DefinePlugin = require('webpack').DefinePlugin;
-const webpack = require('webpack');
 
 const {
     copyConfig,
@@ -32,9 +30,9 @@ const {
     js_loaders,
     svg_file_loaders,
     svg_loaders,
+    IS_RELEASE,
 } = require('./loaders-config');
-
-const IS_RELEASE = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+const Dotenv = require('dotenv-webpack');
 
 const HOISTED_PACKAGES = {
     react: path.resolve(__dirname, '../../../node_modules/react'),
@@ -123,16 +121,25 @@ const MINIMIZERS = !IS_RELEASE
           new CssMinimizerPlugin(),
       ];
 
-const plugins = ({ base, is_test_env, env }) => {
-    let is_qawolf = false;
-
-    if (env.IS_QAWOLF) {
-        is_qawolf = !!JSON.parse(env.IS_QAWOLF);
-    }
-
+const plugins = ({ base, is_test_env }) => {
     return [
+        new Dotenv({}),
         new DefinePlugin({
-            'process.env.IS_QAWOLF': is_qawolf,
+            'process.env.DATADOG_APPLICATION_ID': JSON.stringify(process.env.DATADOG_APPLICATION_ID),
+            'process.env.DATADOG_CLIENT_TOKEN': JSON.stringify(process.env.DATADOG_CLIENT_TOKEN),
+            'process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE': JSON.stringify(
+                process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE
+            ),
+            'process.env.DATADOG_SESSION_SAMPLE_RATE': JSON.stringify(process.env.DATADOG_SESSION_SAMPLE_RATE),
+            'process.env.REF_NAME': JSON.stringify(process.env.REF_NAME),
+            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+            'process.env.RUDDERSTACK_KEY': JSON.stringify(process.env.RUDDERSTACK_KEY),
+            'process.env.GROWTHBOOK_CLIENT_KEY': JSON.stringify(process.env.GROWTHBOOK_CLIENT_KEY),
+            'process.env.GROWTHBOOK_DECRYPTION_KEY': JSON.stringify(process.env.GROWTHBOOK_DECRYPTION_KEY),
+            'process.env.IS_GROWTHBOOK_ENABLED': JSON.stringify(process.env.IS_GROWTHBOOK_ENABLED),
+            'process.env.REMOTE_CONFIG_URL': JSON.stringify(process.env.REMOTE_CONFIG_URL),
+            'process.env.ACC_TRANSLATION_PATH': JSON.stringify('deriv-app-account/staging'),
+            'process.env.CROWDIN_URL': JSON.stringify('https://translations.deriv.com'),
         }),
         new CleanWebpackPlugin(),
         new CopyPlugin(copyConfig(base)),
@@ -141,9 +148,6 @@ const plugins = ({ base, is_test_env, env }) => {
         new PreloadWebpackPlugin(htmlPreloadConfig()),
         new IgnorePlugin({ resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/ }),
         new MiniCssExtractPlugin(cssConfig()),
-        new webpack.optimize.LimitChunkCountPlugin({
-            maxChunks: 10,
-        }),
         new CircularDependencyPlugin({ exclude: /node_modules/, failOnError: true }),
         ...(IS_RELEASE
             ? []

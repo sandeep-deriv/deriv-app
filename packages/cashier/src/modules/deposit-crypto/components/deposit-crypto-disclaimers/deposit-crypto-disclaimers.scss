@@ -1,0 +1,11 @@
+.deposit-crypto-disclaimers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.6rem;
+
+    &__list {
+        list-style: disc;
+        margin-left: 1.4rem;
+    }
+}

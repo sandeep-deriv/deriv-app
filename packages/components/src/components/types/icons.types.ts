@@ -9,7 +9,6 @@ export type TIconsManifest = Readonly<{
     contract: string;
     currency: string;
     dxtrade: string;
-    flag: string;
     mt5: string;
     option: string;
     stock: string;
@@ -33,4 +32,5 @@ export type TIconProps = {
     size?: number | string;
     width?: number | string;
     id?: string;
+    description?: string;
 };

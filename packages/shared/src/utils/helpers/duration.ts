@@ -67,7 +67,7 @@ export const buildDurationConfig = (
 
     const duration_maps = getDurationMaps();
 
-    if (/^tick|daily$/.test(contract.expiry_type)) {
+    if (/^(?:tick|daily)$/.test(contract.expiry_type)) {
         if (arr_units.indexOf(obj_min.unit) === -1) {
             arr_units.push(obj_min.unit);
         }
@@ -163,10 +163,10 @@ export const hasIntradayDurationUnit = (duration_units_list: TUnit[]) => {
  * On switching symbols, end_time value of volatility indices should be set to today
  *
  * @param {String} symbol
- * @param {String} expiry_type
+ * @param {String | null} expiry_type
  * @returns {*}
  */
-export const resetEndTimeOnVolatilityIndices = (symbol: string, expiry_type: string) =>
+export const resetEndTimeOnVolatilityIndices = (symbol: string, expiry_type: string | null) =>
     /^R_/.test(symbol) && expiry_type === 'endtime' ? toMoment(null).format('DD MMM YYYY') : null;
 
 export const getDurationMinMaxValues = (
@@ -179,4 +179,18 @@ export const getDurationMinMaxValues = (
     const min_value = convertDurationLimit(+duration_min_max[contract_expiry_type].min, duration_unit);
 
     return [min_value, max_value];
+};
+
+const formatDisplayedTime = (time_unit: number) => (time_unit < 10 ? `0${time_unit}` : time_unit);
+
+export const formatDurationTime = (time?: number) => {
+    if (time && !isNaN(time)) {
+        const minutes = Math.floor(time / 60);
+        const format_minutes = formatDisplayedTime(minutes);
+        const seconds = Math.floor(time % 60);
+        const format_seconds = formatDisplayedTime(seconds);
+        return `${format_minutes}:${format_seconds}`;
+    }
+
+    return '00:00';
 };

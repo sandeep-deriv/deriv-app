@@ -1,5 +1,5 @@
-import { routes } from '../routes';
 import { getPlatformSettings } from '../brand';
+import { routes } from '../routes';
 
 type TRoutingHistory = {
     action: string;
@@ -20,12 +20,13 @@ export const platform_name = Object.freeze({
     DMT5: getPlatformSettings('mt5').name,
     SmartTrader: getPlatformSettings('smarttrader').name,
     BinaryBot: getPlatformSettings('bbot').name,
+    DerivGO: getPlatformSettings('go').name,
 });
 
 export const CFD_PLATFORMS = Object.freeze({
     MT5: 'mt5',
     DXTRADE: 'dxtrade',
-    DERIVEZ: 'derivez',
+    CTRADER: 'ctrader',
 });
 
 export const isBot = () =>
@@ -39,6 +40,10 @@ export const isMT5 = () =>
 export const isDXtrade = () =>
     /^\/derivx/.test(window.location.pathname) ||
     (/^\/(br_)/.test(window.location.pathname) && window.location.pathname.split('/')[2] === 'derivx');
+
+export const isNavigationFromDerivGO = () => window.sessionStorage.getItem('config.platform') === 'derivgo';
+
+export const isNavigationFromP2P = () => window.sessionStorage.getItem('config.platform') === 'dp2p';
 
 export const getPathname = () => {
     if (isBot()) return platform_name.DBot;
@@ -73,9 +78,6 @@ export const getPlatformInformation = (routing_history: TRoutingHistory) => {
         return { header: platform_name.SmartTrader, icon: getPlatformSettings('smarttrader').icon };
     }
 
-    if (isNavigationFromExternalPlatform(routing_history, routes.binarybot)) {
-        return { header: platform_name.BinaryBot, icon: getPlatformSettings('bbot').icon };
-    }
     return { header: platform_name.DTrader, icon: getPlatformSettings('trader').icon };
 };
 
@@ -97,10 +99,11 @@ export const getPlatformRedirect = (routing_history: TRoutingHistory) => {
         return { name: platform_name.DXtrade, route: routes.dxtrade };
     if (isNavigationFromExternalPlatform(routing_history, routes.smarttrader))
         return { name: platform_name.SmartTrader, route: routes.smarttrader };
-    if (isNavigationFromP2P(routing_history, routes.cashier_p2p)) return { name: 'P2P', route: routes.cashier_p2p };
+    if (isNavigationFromExternalPlatform(routing_history, routes.cashier_p2p))
+        return { name: 'P2P', route: routes.cashier_p2p };
+    if (isNavigationFromP2P()) return { name: 'P2P', route: routes.cashier_p2p, ref: 'p2p' };
     if (isNavigationFromExternalPlatform(routing_history, routes.binarybot))
         return { name: platform_name.BinaryBot, route: routes.binarybot };
-
     return { name: platform_name.DTrader, route: routes.trade };
 };
 
@@ -146,17 +149,12 @@ export const isNavigationFromPlatform = (
     return false;
 };
 
-export const isNavigationFromP2P = (routing_history: TRoutingHistory, platform_route: string) => {
-    const routing_history_index = routing_history.length > 1 ? 1 : 0;
-    const history_item = routing_history[routing_history_index];
-    return history_item?.pathname === platform_route;
-};
-
 export const isNavigationFromExternalPlatform = (routing_history: TRoutingHistory, platform_route: string) => {
     /*
      *  Check if the client is navigating from external platform(SmartTrader or BinaryBot)
      *  and has not visited Dtrader after it.
      */
+
     const platform_index = routing_history.findIndex(history_item => history_item.pathname === platform_route);
     const dtrader_index = routing_history.findIndex(history_item => history_item.pathname === routes.trade);
     const has_visited_platform = platform_index !== -1;

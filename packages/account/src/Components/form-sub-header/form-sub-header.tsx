@@ -1,25 +1,34 @@
-import classNames from 'classnames';
-import React from 'react';
+// [TODO] - To be removed once CFD is configured to use the new form-body component
+import React, { Fragment } from 'react';
+import clsx from 'clsx';
 import { Text } from '@deriv/components';
 
 export type TFormSubHeader = {
     description?: string;
     subtitle?: string;
     title: string;
+    title_text_size?: string;
 };
 
-export const FormSubHeader = ({ description, subtitle, title }: TFormSubHeader) => {
+export const FormSubHeader = ({ description, subtitle, title, title_text_size = 'xs' }: TFormSubHeader) => {
     const title_as_class = title.replace(/\s+/g, '-').toLowerCase();
+
     return (
-        <React.Fragment>
+        <Fragment>
             <div
-                className={classNames('account-form__header', title_as_class, {
+                className={clsx('account-form__header', title_as_class, {
                     'account-form__header--has-description': !!description,
                 })}
                 data-testid='form-sub-header'
             >
                 <div className='account-form__header-section'>
-                    <Text as='h1' color='prominent' weight='bold' size='xs' className='account-form__title'>
+                    <Text
+                        as='h1'
+                        color='prominent'
+                        weight='bold'
+                        size={title_text_size}
+                        className='account-form__title'
+                    >
                         {title}
                     </Text>
                     {subtitle && (
@@ -34,6 +43,6 @@ export const FormSubHeader = ({ description, subtitle, title }: TFormSubHeader) 
                     {description}
                 </Text>
             )}
-        </React.Fragment>
+        </Fragment>
     );
 };

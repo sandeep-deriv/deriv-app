@@ -1,9 +1,9 @@
-import { isEmptyObject, isMobile, State } from '@deriv/shared';
+import { isEmptyObject, State } from '@deriv/shared';
 
 export const hasMissingRequiredField = (account_settings, client, isAccountOfType) => {
     if (!account_settings || isEmptyObject(account_settings)) return false;
 
-    const { is_svg, landing_company_shortcode } = client;
+    const { is_svg } = client;
 
     // TODO: [deriv-eu] refactor into its own function once more exceptions are added.
     let required_fields;
@@ -30,7 +30,6 @@ export const hasMissingRequiredField = (account_settings, client, isAccountOfTyp
     function getRequiredFields() {
         if (!isAccountOfType('financial')) return [];
 
-        const { residence } = client;
         const required_settings_fields = [
             'account_opening_reason',
             'address_line_1',
@@ -39,9 +38,6 @@ export const hasMissingRequiredField = (account_settings, client, isAccountOfTyp
             'tax_identification_number',
             'tax_residence',
         ];
-
-        const address_postcode_is_required = residence === 'gb' || landing_company_shortcode === 'iom';
-        if (address_postcode_is_required) required_settings_fields.push('address_postcode');
 
         return [...required_settings_fields];
     }
@@ -61,18 +57,39 @@ export const getCashierValidations = cashier_arr => {
     }, {});
 };
 
-export const excluded_notifications = isMobile()
-    ? ['contract_sold']
-    : [
-          'you_are_offline',
-          'password_changed',
-          'switch_to_tick_chart',
-          'contract_sold',
-          'maintenance',
-          'bot_switch_account',
-          'new_version_available',
-          'svg_needs_poi_poa',
-          'svg_needs_poa',
-          'svg_needs_poi',
-          'svg_poi_expired',
-      ];
+// Notifications keys will not be added to localStorage and will appear again after user logout/login
+export const excluded_notifications = ['contract_sold', 'has_changed_two_fa'];
+
+export const maintenance_notifications = ['system_maintenance', 'site_maintenance'];
+
+export const priority_toast_messages = [
+    'svg',
+    'need_fa',
+    'p2p_daily_limit_increase',
+    'poinc_upload_limited',
+    'wallets_migrated',
+    'wallets_failed',
+    'needs_poinc',
+    'notify_financial_assessment',
+    'poa_expired',
+    'svg_needs_poa',
+    'svg_needs_poi',
+    'poi_failed',
+    'poa_failed',
+    'svg_poi_expired',
+    'p2p_advertiser_nickname_added',
+    ...maintenance_notifications,
+];
+
+export const poi_notifications = [
+    'authenticate',
+    'poi_expired',
+    'document_needs_action',
+    'identity',
+    'needs_poi',
+    'poi_failed',
+    'poi_verified',
+    'svg_needs_poi_poa',
+    'svg_needs_poi',
+    'svg_poi_expired',
+];

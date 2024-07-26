@@ -1,0 +1,14 @@
+.wallets-list-card-badge {
+    display: flex;
+    padding-inline: 0.4rem;
+    justify-content: center;
+    align-items: center;
+    height: 1.4rem;
+    border-radius: 0.2rem;
+    background: var(--status-light-information, #377cfc);
+    outline: none;
+
+    @include mobile {
+        height: 1.2rem;
+    }
+}

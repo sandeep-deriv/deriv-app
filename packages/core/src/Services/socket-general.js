@@ -1,34 +1,69 @@
 import moment from 'moment';
 import { flow } from 'mobx';
-import { State, getActivePlatform, getPropertyValue, routes, getActionFromUrl } from '@deriv/shared';
+import {
+    State,
+    getSocketURL,
+    getActivePlatform,
+    getPropertyValue,
+    routes,
+    getActionFromUrl,
+    checkServerMaintenance,
+} from '@deriv/shared';
 import { localize } from '@deriv/translations';
 import ServerTime from '_common/base/server_time';
 import BinarySocket from '_common/base/socket_base';
 import WS from './ws-methods';
 
 let client_store, common_store, gtm_store;
+let reconnectionCounter = 1;
 
 // TODO: update commented statements to the corresponding functions from app
 const BinarySocketGeneral = (() => {
     let session_duration_limit, session_start_time, session_timeout;
 
+    let responseTimeoutErrorTimer = null;
+
     const onDisconnect = () => {
+        clearTimeout(responseTimeoutErrorTimer);
         common_store.setIsSocketOpened(false);
     };
 
     const onOpen = is_ready => {
+        responseTimeoutErrorTimer = setTimeout(() => {
+            const expectedResponseTypes = WS?.get?.()?.expect_response_types || {};
+            const pendingResponseTypes = Object.keys(expectedResponseTypes).filter(
+                key => expectedResponseTypes[key].state === 'pending'
+            );
+
+            const error = new Error('deriv-api: no message received after 30s');
+            error.userId = client_store?.loginid;
+
+            window.TrackJS?.console?.error({
+                message: error.message,
+                clientsCountry: client_store?.clients_country,
+                websocketUrl: getSocketURL(),
+                pendingResponseTypes,
+            });
+        }, 30000);
+
         if (is_ready) {
-            if (!client_store.is_valid_login) {
-                client_store.logout();
-                return;
+            if (client_store.is_logged_in || client_store.is_logging_in) {
+                WS.get()
+                    .expectResponse('authorize')
+                    .then(() => {
+                        WS.subscribeWebsiteStatus(ResponseHandlers.websiteStatus);
+                    });
+            } else {
+                WS.subscribeWebsiteStatus(ResponseHandlers.websiteStatus);
             }
-            WS.subscribeWebsiteStatus(ResponseHandlers.websiteStatus);
+
             ServerTime.init(() => common_store.setServerTime(ServerTime.get()));
             common_store.setIsSocketOpened(true);
         }
     };
 
     const onMessage = response => {
+        clearTimeout(responseTimeoutErrorTimer);
         handleError(response);
         // Header.hideNotification('CONNECTION_ERROR');
         switch (response.msg_type) {
@@ -37,7 +72,6 @@ const BinarySocketGeneral = (() => {
                     const is_active_tab = sessionStorage.getItem('active_tab') === '1';
                     if (getPropertyValue(response, ['error', 'code']) === 'SelfExclusion' && is_active_tab) {
                         sessionStorage.removeItem('active_tab');
-                        // Dialog.alert({ id: 'authorize_error_alert', message: response.error.message });
                     }
                     client_store.logout();
                 } else if (!/authorize/.test(State.get('skip_response'))) {
@@ -76,7 +110,7 @@ const BinarySocketGeneral = (() => {
                 client_store.setAccountStatus(response.get_account_status);
                 break;
             case 'payout_currencies':
-                client_store.responsePayoutCurrencies(response.payout_currencies);
+                client_store.responsePayoutCurrencies(response?.payout_currencies);
                 break;
             case 'transaction':
                 gtm_store.pushTransactionData(response);
@@ -88,7 +122,7 @@ const BinarySocketGeneral = (() => {
     const setResidence = residence => {
         if (residence) {
             client_store.setResidence(residence);
-            WS.landingCompany(residence);
+            WS.landingCompany(residence).then(client_store.responseLandingCompany);
         }
     };
 
@@ -187,16 +221,12 @@ const BinarySocketGeneral = (() => {
                         'trading_platform_password_reset',
                         'trading_platform_investor_password_reset',
                         'new_account_virtual',
-                        'p2p_advertiser_info',
                         'portfolio',
                         'proposal_open_contract',
                         'change_email',
                     ].includes(msg_type)
                 ) {
                     return;
-                }
-                if (!['reset_password'].includes(msg_type)) {
-                    if (window.TrackJS) window.TrackJS.track('Custom InvalidToken error');
                 }
                 // eslint-disable-next-line no-case-declarations
                 const active_platform = getActivePlatform(common_store.app_routing_history);
@@ -205,7 +235,7 @@ const BinarySocketGeneral = (() => {
                 if (active_platform === 'DBot') return;
 
                 client_store.logout().then(() => {
-                    let redirect_to = routes.trade;
+                    let redirect_to = routes.traders_hub;
                     const action = getActionFromUrl();
                     if (action === 'system_email_change') {
                         return;
@@ -250,6 +280,7 @@ const BinarySocketGeneral = (() => {
         WS.storage.getSettings();
         WS.getAccountStatus();
         WS.storage.payoutCurrencies();
+        client_store.setIsAuthorize(true);
         if (!client_store.is_virtual) {
             WS.getSelfExclusion();
         }
@@ -279,21 +310,28 @@ export default BinarySocketGeneral;
 const ResponseHandlers = (() => {
     const websiteStatus = response => {
         if (response.website_status) {
-            const is_available = !BinarySocket.isSiteDown(response.website_status.site_status);
-            if (is_available && BinarySocket.getAvailability().is_down) {
-                window.location.reload();
-                return;
-            }
-            const is_updating = BinarySocket.isSiteUpdating(response.website_status.site_status);
-            if (is_updating && !BinarySocket.getAvailability().is_updating) {
-                // the existing connection is alive for one minute while status is updating
-                // switch to the new connection somewhere between 1-30 seconds from now
-                // to avoid everyone switching to the new connection at the same time
-                const rand_timeout = Math.floor(Math.random() * 30) + 1;
+            const is_server_down = checkServerMaintenance(response.website_status);
+
+            // If the site is down or updating, connect to WebSocket with an exponentially increasing delay on every attempt.
+            // Requests excluding - website_status/authorize will be blocked during backoff
+            // The delay starts off at approximately 1.024 seconds and grows exponentially, with a random factor between 0.5 and 2 to spread out the reconnection attempts.
+            // The maximum delay is capped at 10 minutes (600k ms).
+            if (is_server_down) {
+                const reconnectionDelay =
+                    Math.min(Math.pow(2, reconnectionCounter + 9), 600000) * (0.5 + Math.random() * 1.5);
+
                 window.setTimeout(() => {
+                    reconnectionCounter++;
                     BinarySocket.closeAndOpenNewConnection();
-                }, rand_timeout * 1000);
+                    BinarySocket.blockRequest(is_server_down);
+                }, reconnectionDelay);
+                // If site is up, and there was a reconnection attempted before
+            } else if (!is_server_down && reconnectionCounter > 1) {
+                window.location.reload();
             }
+
+            // @deriv/deriv-api blockRequest(true) affects all API requests except website_status
+            BinarySocket.blockRequest(is_server_down);
             BinarySocket.setAvailability(response.website_status.site_status);
             client_store.setWebsiteStatus(response);
         }

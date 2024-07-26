@@ -1,12 +1,13 @@
 import classNames from 'classnames';
 import React from 'react';
-import { Button, HintBox, Icon, Text, ThemedScrollbars } from '@deriv/components';
-import { formatMoney, isDesktop, isMobile } from '@deriv/shared';
-import { observer } from 'mobx-react-lite';
+import { useHistory } from 'react-router-dom';
+import { Button, Icon, InlineMessage, Text, ThemedScrollbars } from '@deriv/components';
+import { useP2PSettings } from '@deriv/hooks';
+import { formatMoney, isDesktop, isMobile, routes } from '@deriv/shared';
+import { useStore, observer } from '@deriv/stores';
 import { Localize, localize } from 'Components/i18next';
-import Chat from 'Components/orders/chat/chat.jsx';
-import EmailVerificationModal from 'Components/email-verification-modal';
-import RatingModal from 'Components/rating-modal';
+import { api_error_codes } from 'Constants/api-error-codes';
+import Chat from 'Pages/orders/chat/chat.jsx';
 import StarRating from 'Components/star-rating';
 import UserRatingButton from 'Components/user-rating-button';
 import OrderDetailsFooter from 'Components/order-details/order-details-footer.jsx';
@@ -17,17 +18,22 @@ import P2PAccordion from 'Components/p2p-accordion/p2p-accordion.jsx';
 import { useStores } from 'Stores';
 import PaymentMethodAccordionHeader from './payment-method-accordion-header.jsx';
 import PaymentMethodAccordionContent from './payment-method-accordion-content.jsx';
-import MyProfileSeparatorContainer from '../my-profile/my-profile-separator-container';
+import SeparatorContainerLine from 'Components/separator-container-line';
+import { useModalManagerContext } from 'Components/modal-manager/modal-manager-context';
 import { setDecimalPlaces, removeTrailingZeros, roundOffDecimal } from 'Utils/format-value';
-import LoadingModal from '../loading-modal';
-import InvalidVerificationLinkModal from '../invalid-verification-link-modal';
-import EmailLinkBlockedModal from '../email-link-blocked-modal';
-import EmailLinkVerifiedModal from '../email-link-verified-modal';
 import { getDateAfterHours } from 'Utils/date-time';
-import './order-details.scss';
+import { getInlineTextSize } from 'Utils/responsive';
+import 'Components/order-details/order-details.scss';
 
 const OrderDetails = observer(() => {
-    const { general_store, my_profile_store, order_store, sendbird_store } = useStores();
+    const { buy_sell_store, general_store, my_profile_store, order_store, sendbird_store, order_details_store } =
+        useStores();
+    const {
+        notifications: { removeNotificationByKey, removeNotificationMessage, setP2POrderProps },
+    } = useStore();
+    const { hideModal, isCurrentModal, showModal, useRegisterModalProps } = useModalManagerContext();
+
+    const { p2p_settings } = useP2PSettings();
 
     const {
         account_currency,
@@ -59,6 +65,7 @@ const OrderDetails = observer(() => {
         should_show_lost_funds_banner,
         should_show_order_footer,
         status_string,
+        verification_pending,
     } = order_store?.order_information;
 
     const { chat_channel_url } = sendbird_store;
@@ -66,27 +73,56 @@ const OrderDetails = observer(() => {
     const [should_expand_all, setShouldExpandAll] = React.useState(false);
     const [remaining_review_time, setRemainingReviewTime] = React.useState(null);
 
+    const history = useHistory();
+
     const page_title = is_buy_order_for_user
         ? localize('Buy {{offered_currency}} order', { offered_currency: account_currency })
         : localize('Sell {{offered_currency}} order', { offered_currency: account_currency });
 
     const rating_average_decimal = review_details ? Number(review_details.rating).toFixed(1) : undefined;
 
+    const showRatingModal = () => {
+        showModal({
+            key: 'RatingModal',
+        });
+    };
+
+    const navigateToOrderDetails = orderId => {
+        history.push({ pathname: routes.p2p_orders, search: `?order=${orderId}` });
+    };
+
     React.useEffect(() => {
         const disposeListeners = sendbird_store.registerEventListeners();
         const disposeReactions = sendbird_store.registerMobXReactions();
 
-        order_store.getSettings();
-        order_store.getWebsiteStatus();
         order_store.setRatingValue(0);
         order_store.setIsRecommended(undefined);
         my_profile_store.getPaymentMethodsList();
 
-        if (order_channel_url) {
-            sendbird_store.setChatChannelUrl(order_channel_url);
+        const handleChatChannelCreation = () => {
+            if (order_channel_url) {
+                sendbird_store.setChatChannelUrl(order_channel_url);
+            } else {
+                sendbird_store.createChatForNewOrder(order_store.order_id);
+            }
+        };
+
+        // TODO: remove condition check and settimeout once access chat_channel_url from p2p_order_create is activated in BO, since chat channel url response is always delayed
+        // Added delay only for first time order creation, since response is delayed. To be removed after feature release.
+        if (buy_sell_store.is_create_order_subscribed) {
+            setTimeout(() => {
+                handleChatChannelCreation();
+            }, 1250);
         } else {
-            sendbird_store.createChatForNewOrder(order_store.order_id);
+            handleChatChannelCreation();
         }
+
+        setP2POrderProps({
+            order_id: order_store.order_id,
+            setP2POrderTab: general_store.setP2POrderTab,
+            setIsRatingModalOpen: is_open => (is_open ? showRatingModal() : hideModal()),
+            navigateToOrderDetails,
+        });
 
         return () => {
             disposeListeners();
@@ -94,21 +130,65 @@ const OrderDetails = observer(() => {
             order_store.setOrderPaymentMethodDetails(undefined);
             order_store.setOrderId(null);
             order_store.setActiveOrder(null);
-            general_store.props.setP2POrderProps({
-                order_id: order_store.order_id,
-                redirectToOrderDetails: general_store.redirectToOrderDetails,
-                setIsRatingModalOpen: order_store.setIsRatingModalOpen,
+            history?.replace({
+                search: '',
+                hash: location.hash,
             });
+            buy_sell_store.setIsCreateOrderSubscribed(false);
+            buy_sell_store.unsubscribeCreateOrder();
+            sendbird_store.setHasChatError(false);
+            order_details_store.setErrorMessage(null);
+            sendbird_store.setChannelMessages([]);
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     React.useEffect(() => {
+        if (
+            verification_pending === 0 &&
+            !is_buy_order_for_user &&
+            status_string !== 'Expired' &&
+            status_string !== 'Under dispute' &&
+            order_store.error_code !== api_error_codes.EXCESSIVE_VERIFICATION_REQUESTS &&
+            !order_store.is_verifying_email
+        ) {
+            showModal({ key: 'EmailLinkExpiredModal' }, { should_stack_modal: isMobile() });
+        }
+
+        if (status_string === 'Expired' && isCurrentModal('EmailLinkExpiredModal', 'OrderDetailsConfirmModal'))
+            hideModal({ should_hide_all_modals: true });
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [verification_pending, status_string]);
+
+    React.useEffect(() => {
         if (completion_time) {
-            setRemainingReviewTime(getDateAfterHours(completion_time, general_store.review_period));
+            setRemainingReviewTime(getDateAfterHours(completion_time, p2p_settings.review_period));
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [completion_time]);
+    }, [completion_time, p2p_settings.review_period]);
+
+    useRegisterModalProps({
+        key: 'RatingModal',
+        props: {
+            is_buy_order_for_user,
+            is_user_recommended_previously,
+            onClickDone: () => {
+                order_store.setOrderRating(id);
+                removeNotificationMessage({
+                    key: `p2p_order_${id}`,
+                });
+                removeNotificationByKey({
+                    key: `p2p_order_${id}`,
+                });
+            },
+            onClickSkip: () => {
+                order_store.setRatingValue(0);
+                hideModal();
+            },
+            previous_recommendation,
+        },
+    });
 
     if (sendbird_store.should_show_chat_on_orders) {
         return <Chat />;
@@ -121,75 +201,21 @@ const OrderDetails = observer(() => {
 
     return (
         <OrderDetailsWrapper page_title={page_title}>
-            {is_active_order && (
-                <RatingModal
-                    is_buy_order_for_user={is_buy_order_for_user}
-                    is_rating_modal_open={order_store.is_rating_modal_open}
-                    is_user_recommended_previously={is_user_recommended_previously}
-                    onClickClearRecommendation={() => order_store.setIsRecommended(null)}
-                    onClickDone={() => {
-                        order_store.setOrderRating(id);
-                        general_store.props.removeNotificationMessage({ key: `order-${id}` });
-                        general_store.props.removeNotificationByKey({ key: `order-${id}` });
-                    }}
-                    onClickNotRecommended={() => order_store.setIsRecommended(0)}
-                    onClickRecommended={() => order_store.setIsRecommended(1)}
-                    onClickSkip={() => {
-                        order_store.setRatingValue(0);
-                        order_store.setIsRatingModalOpen(false);
-                    }}
-                    onClickStar={order_store.handleRating}
-                    previous_recommendation={previous_recommendation}
-                    rating_value={order_store.rating_value}
-                />
-            )}
             {should_show_lost_funds_banner && (
                 <div className='order-details--warning'>
-                    <HintBox
-                        icon='IcAlertWarning'
-                        message={
-                            <Text size='xxxs' color='prominent' line_height='xs'>
-                                <Localize i18n_default_text="Don't risk your funds with cash transactions. Use bank transfers or e-wallets instead." />
-                            </Text>
-                        }
-                        is_warn
+                    <InlineMessage
+                        message={localize(
+                            "Don't risk your funds with cash transactions. Use bank transfers or e-wallets instead."
+                        )}
+                        size={getInlineTextSize('sm', 'xs')}
                     />
                 </div>
-            )}
-            {!is_buy_order_for_user && (
-                <React.Fragment>
-                    <EmailVerificationModal
-                        email_address={order_store.user_email_address}
-                        is_email_verification_modal_open={order_store.is_email_verification_modal_open}
-                        onClickResendEmailButton={() => order_store.confirmOrderRequest(id)}
-                        setIsEmailVerificationModalOpen={order_store.setIsEmailVerificationModalOpen}
-                    />
-                    <EmailLinkVerifiedModal
-                        amount={display_payment_amount}
-                        currency={local_currency}
-                        is_email_link_verified_modal_open={order_store.is_email_link_verified_modal_open}
-                        onClickConfirm={() => order_store.confirmOrder(is_buy_order_for_user)}
-                        setIsEmailLinkVerifiedModalOpen={order_store.setIsEmailLinkVerifiedModalOpen}
-                    />
-                    <InvalidVerificationLinkModal
-                        invalid_verification_link_error_message={order_store.verification_link_error_message}
-                        is_invalid_verification_link_modal_open={order_store.is_invalid_verification_link_modal_open}
-                        setIsInvalidVerificationLinkModalOpen={order_store.setIsInvalidVerificationLinkModalOpen}
-                        onClickGetNewLinkButton={() => order_store.confirmOrderRequest(id)}
-                    />
-                    <EmailLinkBlockedModal
-                        email_link_blocked_modal_error_message={order_store.verification_link_error_message}
-                        is_email_link_blocked_modal_open={order_store.is_email_link_blocked_modal_open}
-                        setIsEmailLinkBlockedModalOpen={order_store.setIsEmailLinkBlockedModalOpen}
-                    />
-                    <LoadingModal is_loading_modal_open={order_store.is_loading_modal_open} />
-                </React.Fragment>
             )}
             <div className='order-details'>
                 <div className='order-details-card'>
                     <div className='order-details-card__header'>
                         <div className='order-details-card__header--left'>
-                            <div
+                            <Text
                                 className={classNames(
                                     'order-details-card__header-status',
                                     'order-details-card__header-status--info',
@@ -199,19 +225,26 @@ const OrderDetails = observer(() => {
                                         'order-details-card__header-status--success': should_highlight_success,
                                     }
                                 )}
+                                as='p'
+                                line_height='s'
+                                weight='bold'
                             >
                                 {status_string}
-                            </div>
+                            </Text>
                             {should_highlight_success && (
-                                <div className='order-details-card__message'>{labels.result_string}</div>
+                                <Text as='p' line_height='xl' size='xs'>
+                                    {labels.result_string}
+                                </Text>
                             )}
                             {!has_timer_expired && (is_pending_order || is_buyer_confirmed_order) && (
-                                <div className='order-details-card__header-amount'>
+                                <Text size='m'>
                                     {display_payment_amount} {local_currency}
-                                </div>
+                                </Text>
                             )}
                             <div className='order-details-card__header-id'>
-                                <Localize i18n_default_text='Order ID {{ id }}' values={{ id }} />
+                                <Text color='less-prominent' size='xxs' line_height='l'>
+                                    <Localize i18n_default_text='Order ID {{ id }}' values={{ id }} />
+                                </Text>
                             </div>
                         </div>
                         <div className='order-details-card__header--right'>
@@ -254,7 +287,7 @@ const OrderDetails = observer(() => {
                         </div>
                         {is_active_order && (
                             <React.Fragment>
-                                <MyProfileSeparatorContainer.Line className='order-details-card--line' />
+                                <SeparatorContainerLine className='order-details-card--line' />
                                 {order_store?.has_order_payment_method_details ? (
                                     <div className='order-details-card--padding'>
                                         <section className='order-details-card__title'>
@@ -262,7 +295,7 @@ const OrderDetails = observer(() => {
                                                 {labels.payment_details}
                                             </Text>
                                             <Button
-                                                className='p2p-my-ads__expand-button'
+                                                className='my-ads__expand-button'
                                                 onClick={() => setShouldExpandAll(prev_state => !prev_state)}
                                                 transparent
                                             >
@@ -299,7 +332,7 @@ const OrderDetails = observer(() => {
                                         value={payment_info || '-'}
                                     />
                                 )}
-                                <MyProfileSeparatorContainer.Line className='order-details-card--line' />
+                                <SeparatorContainerLine className='order-details-card--line' />
                                 <OrderInfoBlock
                                     className='order-details-card--padding order-details-card__textbox'
                                     label={labels.contact_details}
@@ -307,7 +340,7 @@ const OrderDetails = observer(() => {
                                     weight='bold'
                                     value={contact_info || '-'}
                                 />
-                                <MyProfileSeparatorContainer.Line className='order-details-card--line' />
+                                <SeparatorContainerLine className='order-details-card--line' />
                                 <OrderInfoBlock
                                     className='order-details-card--padding order-details-card__textbox'
                                     label={labels.instructions}
@@ -319,27 +352,7 @@ const OrderDetails = observer(() => {
                         )}
                         {is_completed_order && !review_details && (
                             <React.Fragment>
-                                <RatingModal
-                                    is_buy_order_for_user={is_buy_order_for_user}
-                                    is_rating_modal_open={order_store.is_rating_modal_open}
-                                    is_user_recommended_previously={is_user_recommended_previously}
-                                    onClickClearRecommendation={() => order_store.setIsRecommended(null)}
-                                    onClickDone={() => {
-                                        order_store.setOrderRating(id);
-                                        general_store.props.removeNotificationMessage({ key: `order-${id}` });
-                                        general_store.props.removeNotificationByKey({ key: `order-${id}` });
-                                    }}
-                                    onClickNotRecommended={() => order_store.setIsRecommended(0)}
-                                    onClickRecommended={() => order_store.setIsRecommended(1)}
-                                    onClickSkip={() => {
-                                        order_store.setRatingValue(0);
-                                        order_store.setIsRatingModalOpen(false);
-                                    }}
-                                    onClickStar={order_store.handleRating}
-                                    previous_recommendation={previous_recommendation}
-                                    rating_value={order_store.rating_value}
-                                />
-                                <MyProfileSeparatorContainer.Line className='order-details-card--rating__line' />
+                                <SeparatorContainerLine className='order-details-card--rating__line' />
                                 <div className='order-details-card--rating'>
                                     <UserRatingButton
                                         button_text={
@@ -347,7 +360,7 @@ const OrderDetails = observer(() => {
                                         }
                                         is_disabled={!is_reviewable}
                                         large
-                                        onClick={() => order_store.setIsRatingModalOpen(true)}
+                                        onClick={showRatingModal}
                                     />
                                 </div>
                                 <Text className='order-details-card--rating__text' color='less-prominent' size='xxxs'>
@@ -366,9 +379,9 @@ const OrderDetails = observer(() => {
                         )}
                         {review_details && (
                             <React.Fragment>
-                                <MyProfileSeparatorContainer.Line className='order-details-card--rating__line' />
+                                <SeparatorContainerLine className='order-details-card--rating__line' />
                                 <div className='order-details-card__ratings'>
-                                    <Text color='prominent' size='s' weight='bold'>
+                                    <Text color='prominent' weight='bold'>
                                         <Localize i18n_default_text='Your transaction experience' />
                                     </Text>
                                     <div className='order-details-card__ratings--row'>
@@ -416,7 +429,7 @@ const OrderDetails = observer(() => {
                             </React.Fragment>
                         )}
                         {should_show_order_footer && isDesktop() && (
-                            <MyProfileSeparatorContainer.Line className='order-details-card--line' />
+                            <SeparatorContainerLine className='order-details-card--line' />
                         )}
                     </ThemedScrollbars>
                     {should_show_order_footer && isDesktop() && (

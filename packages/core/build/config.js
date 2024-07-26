@@ -24,6 +24,18 @@ const copyConfig = base => {
             to: 'js/smartcharts/',
         },
         {
+            from: path.resolve(__dirname, '../../../node_modules/@deriv/deriv-charts/dist/chart/assets'),
+            to: 'assets',
+        },
+        {
+            from: path.resolve(__dirname, '../../../node_modules/@deriv/deriv-charts/dist/chart/assets'),
+            to: 'contract/assets',
+        },
+        {
+            from: path.resolve(__dirname, '../../../node_modules/@deriv/deriv-charts/dist/chart/assets'),
+            to: 'bot/assets',
+        },
+        {
             from: path.resolve(__dirname, '../node_modules/@deriv/account/dist/account/js/'),
             to: 'account/js',
         },
@@ -38,6 +50,15 @@ const copyConfig = base => {
         {
             from: path.resolve(__dirname, '../node_modules/@deriv/cashier/dist/cashier/css/'),
             to: 'cashier/css',
+        },
+        {
+            from: path.resolve(__dirname, '../node_modules/@deriv/p2p/dist/p2p/js/'),
+            to: 'p2p/js',
+        },
+        {
+            from: path.resolve(__dirname, '../node_modules/@deriv/p2p/dist/p2p/css/'),
+            to: 'p2p/css',
+            noErrorOnMissing: true,
         },
         {
             from: path.resolve(__dirname, '../node_modules/@deriv/cashier/dist/cashier/public'),
@@ -65,6 +86,14 @@ const copyConfig = base => {
         {
             from: path.resolve(__dirname, '../node_modules/@deriv/appstore/dist/appstore'),
             to: 'appstore',
+        },
+        {
+            from: path.resolve(__dirname, '../node_modules/@deriv/wallets/dist/wallets'),
+            to: 'wallets',
+        },
+        {
+            from: path.resolve(__dirname, '../node_modules/@deriv/cashier-v2/dist/cashier-v2'),
+            to: 'cashier-v2',
         },
         { from: path.resolve(__dirname, '../scripts/CNAME'), to: 'CNAME', toType: 'file', noErrorOnMissing: true },
         {
@@ -105,6 +134,10 @@ const copyConfig = base => {
             from: path.resolve(__dirname, '../src/public/images/common/static_images/'),
             to: 'public/images/common',
         },
+        {
+            from: path.resolve(__dirname, '../src/public/videos/'),
+            to: 'public/videos',
+        },
         // { from: path.resolve(__dirname, '../src/public/images/common/og_image.gif'), to: 'images/common/og_image.gif' }, // Once the design for og_image is ready, bring this back.
         {
             from: path.resolve(__dirname, '../src/public/images/common/logos/platform_logos/'),
@@ -124,10 +157,6 @@ const copyConfig = base => {
                 return transformContentUrlBase(content, transform_path, base);
             },
         },
-        {
-            from: path.resolve(__dirname, '../src/public/pdf'),
-            to: 'public/pdf',
-        },
     ];
 
     return {
@@ -138,7 +167,7 @@ const copyConfig = base => {
     };
 };
 
-const generateSWConfig = is_release => ({
+const generateSWConfig = () => ({
     cleanupOutdatedCaches: true,
     exclude: [/\**/],
     runtimeCaching: [
@@ -166,7 +195,7 @@ const generateSWConfig = is_release => ({
         },
         {
             urlPattern: ({ url }) => {
-                return url.pathname.match(/^\/js\/smartcharts\//);
+                return url.pathname.match(/^\/js\/(smartcharts)\//);
             },
             handler: 'CacheFirst',
             options: {
@@ -201,9 +230,6 @@ const generateSWConfig = is_release => ({
     ],
     skipWaiting: true,
     clientsClaim: true,
-    ...(is_release && {
-        importScripts: [`https://cdn.pushwoosh.com/webpush/v3/pushwoosh-service-worker.js`],
-    }),
 });
 
 const htmlOutputConfig = is_release => ({

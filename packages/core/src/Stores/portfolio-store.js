@@ -1,15 +1,17 @@
 import throttle from 'lodash.throttle';
 import { action, computed, observable, reaction, makeObservable, override } from 'mobx';
-import { createTransformer } from 'mobx-utils';
+import { computedFn } from 'mobx-utils';
 import {
+    ChartBarrierStore,
+    isAccumulatorContract,
     isEmptyObject,
     isEnded,
-    isUserSold,
     isValidToSell,
     isMultiplierContract,
     getCurrentTick,
     getDisplayStatus,
     WS,
+    filterDisabledPositions,
     formatPortfolioPosition,
     contractCancelled,
     contractSold,
@@ -17,11 +19,13 @@ import {
     getDurationTime,
     getDurationUnitText,
     getEndTime,
+    TRADE_TYPES,
     removeBarrier,
+    routes,
+    setLimitOrderBarriers,
 } from '@deriv/shared';
 import { Money } from '@deriv/components';
-import { ChartBarrierStore } from './chart-barrier-store';
-import { setLimitOrderBarriers } from './Helpers/limit-orders';
+import { Analytics } from '@deriv-com/analytics';
 
 import BaseStore from './base-store';
 
@@ -29,15 +33,18 @@ export default class PortfolioStore extends BaseStore {
     positions = [];
     all_positions = [];
     positions_map = {};
-    is_loading = false;
+    is_loading = true;
     error = '';
+
+    //accumulators
+    open_accu_contract = null;
 
     // barriers
     barriers = [];
     main_barrier = null;
     contract_type = '';
 
-    getPositionById = createTransformer(id => this.positions.find(position => +position.id === +id));
+    getPositionById = computedFn(id => this.positions.find(position => +position.id === +id));
 
     responseQueue = [];
 
@@ -55,13 +62,14 @@ export default class PortfolioStore extends BaseStore {
             barriers: observable,
             main_barrier: observable,
             contract_type: observable,
-            active_positions: observable.shallow,
+            active_positions: observable.struct,
             initializePortfolio: action.bound,
             clearTable: action.bound,
             portfolioHandler: action.bound,
             onBuyResponse: action.bound,
             transactionHandler: action.bound,
             proposalOpenContractHandler: action.bound,
+            open_accu_contract: observable,
             onClickCancel: action.bound,
             onClickSell: action.bound,
             handleSell: action.bound,
@@ -81,10 +89,11 @@ export default class PortfolioStore extends BaseStore {
             active_positions_count: computed,
             is_empty: computed,
             setPurchaseSpotBarrier: action,
-            updateBarrierColor: action,
             updateLimitOrderBarriers: action,
             setContractType: action,
+            is_accumulator: computed,
             is_multiplier: computed,
+            is_turbos: computed,
         });
 
         this.root_store = root_store;
@@ -123,6 +132,7 @@ export default class PortfolioStore extends BaseStore {
         this.error = '';
         if (response.portfolio.contracts) {
             this.positions = response.portfolio.contracts
+                .filter(filterDisabledPositions)
                 .map(pos => formatPortfolioPosition(pos, this.root_store.active_symbols.active_symbols))
                 .sort((pos1, pos2) => pos2.reference - pos1.reference); // new contracts first
 
@@ -159,8 +169,8 @@ export default class PortfolioStore extends BaseStore {
             const i = this.getPositionIndexById(contract_id);
 
             if (!this.positions[i]) {
-                // On a page refresh, portfolio call has returend empty,
-                // even though we we get a transaction.sell response.
+                // On a page refresh, portfolio call has returned empty,
+                // even though we get a transaction.sell response.
                 return;
             }
             this.positions[i].is_loading = true;
@@ -239,8 +249,11 @@ export default class PortfolioStore extends BaseStore {
         const profit_loss = +proposal.profit;
 
         // fix for missing barrier and entry_spot in proposal_open_contract API response, only re-assign if valid
-        if (proposal.barrier) portfolio_position.barrier = +proposal.barrier;
-        if (proposal.entry_spot) portfolio_position.entry_spot = +proposal.entry_spot;
+        Object.entries(proposal).forEach(([key, value]) => {
+            if (key === 'barrier' || key === 'high_barrier' || key === 'low_barrier' || key === 'entry_spot') {
+                portfolio_position[key] = +value;
+            }
+        });
 
         // store contract proposal details that require modifiers
         portfolio_position.indicative = new_indicative;
@@ -292,7 +305,7 @@ export default class PortfolioStore extends BaseStore {
                         type: response.msg_type,
                         ...response.error,
                     });
-                } else {
+                } else if (window.location.pathname !== routes.trade || !this.root_store.ui.is_mobile) {
                     this.root_store.notifications.addNotificationMessage(contractCancelled());
                 }
             });
@@ -329,9 +342,17 @@ export default class PortfolioStore extends BaseStore {
                 sell_price: response.sell.sold_for,
                 transaction_id: response.sell.transaction_id,
             };
-            this.root_store.notifications.addNotificationMessage(
-                contractSold(this.root_store.client.currency, response.sell.sold_for, Money)
-            );
+            if (window.location.pathname !== routes.trade || !this.root_store.ui.is_mobile) {
+                this.root_store.notifications.addNotificationMessage(
+                    contractSold(this.root_store.client.currency, response.sell.sold_for, Money)
+                );
+            }
+
+            Analytics.trackEvent('ce_reports_form', {
+                action: 'close_contract',
+                form_name: 'default',
+                subform_name: 'open_positions_form',
+            });
         }
     }
 
@@ -385,10 +406,15 @@ export default class PortfolioStore extends BaseStore {
             this.positions[i].contract_info.entry_spot = this.positions[i].entry_spot;
         }
 
-        // remove exit_spot for manually sold contracts
-        if (isUserSold(contract_response)) this.positions[i].exit_spot = '-';
-
         this.positions[i].is_loading = false;
+
+        if (
+            this.root_store.ui.is_mobile &&
+            getEndTime(contract_response) &&
+            window.location.pathname === routes.trade
+        ) {
+            this.root_store.notifications.addTradeNotification(this.positions[i].contract_info);
+        }
     };
 
     populateContractUpdate({ contract_update }, contract_id) {
@@ -446,7 +472,7 @@ export default class PortfolioStore extends BaseStore {
     }
 
     networkStatusChangeListener(is_online) {
-        this.is_loading = !is_online;
+        this.is_loading = this.is_loading || !is_online;
     }
 
     onMount() {
@@ -505,6 +531,7 @@ export default class PortfolioStore extends BaseStore {
     setActivePositions() {
         this.active_positions = this.positions.filter(portfolio_pos => !getEndTime(portfolio_pos.contract_info));
         this.all_positions = [...this.positions];
+        this.open_accu_contract = this.active_positions.find(({ type }) => isAccumulatorContract(type));
     }
 
     updatePositions = () => {
@@ -548,16 +575,7 @@ export default class PortfolioStore extends BaseStore {
             purchase_spot_barrier.draggable = false;
             purchase_spot_barrier.hideOffscreenBarrier = true;
             purchase_spot_barrier.isSingleBarrier = true;
-            purchase_spot_barrier.updateBarrierColor(this.root_store.ui.is_dark_mode_on);
             this.barriers.push(purchase_spot_barrier);
-        }
-    }
-
-    updateBarrierColor(is_dark_mode) {
-        const { main_barrier } = JSON.parse(localStorage.getItem('trade_store')) || {};
-        this.main_barrier = main_barrier;
-        if (this.main_barrier) {
-            this.main_barrier.updateBarrierColor(is_dark_mode);
         }
     }
 
@@ -576,7 +594,15 @@ export default class PortfolioStore extends BaseStore {
         this.contract_type = contract_type;
     }
 
+    get is_accumulator() {
+        return this.contract_type === TRADE_TYPES.ACCUMULATOR;
+    }
+
     get is_multiplier() {
-        return this.contract_type === 'multiplier';
+        return this.contract_type === TRADE_TYPES.MULTIPLIER;
+    }
+
+    get is_turbos() {
+        return this.contract_type === TRADE_TYPES.TURBOS.LONG || this.contract_type === TRADE_TYPES.TURBOS.SHORT;
     }
 }

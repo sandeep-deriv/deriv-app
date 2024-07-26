@@ -1,0 +1,231 @@
+@mixin flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.passkeys {
+    width: 100%;
+    margin-inline: auto;
+
+    &-status {
+        &__wrapper {
+            height: 100%;
+            @include flex-column;
+            justify-content: center;
+            align-items: center;
+            margin-block: 1.6rem;
+
+            .dc-input--error {
+                margin-bottom: 3.2rem;
+            }
+
+            &--expanded {
+                display: block;
+
+                .passkey-status {
+                    &__icon {
+                        display: block;
+                        margin-inline: auto;
+                    }
+
+                    &__title {
+                        margin-bottom: 0;
+                    }
+                }
+            }
+        }
+
+        &__title {
+            margin: 2.4rem auto 0.8rem;
+        }
+
+        &__description {
+            &-back-button {
+                margin-top: 2.4rem;
+                margin-inline-start: 2.4rem;
+                margin-inline-end: 0;
+                margin-bottom: 0;
+            }
+
+            &-card {
+                @include flex-column;
+                gap: 0.8rem;
+                border-bottom: 1px solid var(--general-hover);
+                padding: 1.6rem 0;
+
+                ul {
+                    list-style: disc;
+                    padding-inline-start: 1.2rem;
+
+                    li {
+                        margin-inline-start: 0.8rem;
+
+                        &::marker {
+                            font-size: 1.2rem;
+                        }
+                    }
+                }
+            }
+
+            &-container {
+                @include flex-column;
+            }
+
+            &-tips {
+                &-wrapper {
+                    display: flex;
+                    padding: 1.6rem;
+                    margin-top: 1.6rem;
+                    border-radius: 2 * $BORDER_RADIUS;
+                    border: 1px solid var(--border-normal);
+                    gap: 0.8rem;
+
+                    svg {
+                        flex-shrink: 0;
+                    }
+
+                    .dc-icon {
+                        margin: initial;
+                    }
+                }
+
+                &-container {
+                    @include flex-column;
+                    align-items: flex-start;
+
+                    ul {
+                        list-style: disc;
+                        padding-inline-start: 1.2rem;
+
+                        li {
+                            margin-inline-start: 0.8rem;
+
+                            &::marker {
+                                font-size: 1rem;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        &__footer {
+            flex-direction: row;
+            gap: 0.8rem;
+            padding: 1.6rem;
+
+            .dc-btn {
+                flex: 1;
+            }
+        }
+    }
+
+    .dc-btn {
+        height: 4rem;
+    }
+
+    &-list {
+        &__wrapper {
+            display: block;
+        }
+    }
+
+    &-card {
+        display: flex;
+        gap: 0.8rem;
+        margin-block: 1.6rem;
+        padding-bottom: 1.6rem;
+        border-bottom: 1px solid var(--general-hover);
+
+        & > .dc-icon:first-child {
+            margin-top: 0.4rem;
+            min-width: fit-content;
+        }
+
+        & > .dc-icon:last-child {
+            margin-inline-start: auto;
+        }
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &__passkey {
+            &-type-icon {
+                margin-top: 0.4rem;
+            }
+
+            &-name {
+                word-break: break-word;
+            }
+        }
+
+        .dc-dropdown-container {
+            min-width: unset;
+            margin-inline-start: auto;
+
+            .dc-dropdown__list {
+                inset-inline-start: -120px;
+
+                .dc-list {
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+
+                    &--has-suffix-icon {
+                        width: 16.8rem;
+                    }
+
+                    &__item {
+                        padding-top: 8px;
+                        height: 4.8rem;
+
+                        &-text {
+                            padding-inline-start: 1.6rem;
+                        }
+
+                        &--disabled {
+                            display: none;
+                        }
+                    }
+                }
+            }
+
+            .dc-dropdown__display {
+                border: unset;
+            }
+        }
+    }
+
+    &-snackbar__container {
+        position: absolute;
+        bottom: 8.2rem;
+        margin-inline: 1.6rem;
+        inset-inline-start: 0;
+        inset-inline-end: 0;
+        background: inherit;
+    }
+}
+
+.dc-modal__container_passkeys-modal {
+    min-width: 32.8rem !important;
+
+    .dc-modal-header {
+        &__close,
+        &__section {
+            margin: 1.6rem 1.6rem 0;
+            padding: 0;
+            width: initial;
+            height: initial;
+            line-height: initial;
+        }
+    }
+
+    .dc-modal-body {
+        padding: 1.6rem 1.6rem 0;
+
+        ul {
+            list-style: disc;
+            padding-inline-start: 1.6rem;
+        }
+    }
+}

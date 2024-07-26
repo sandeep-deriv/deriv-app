@@ -1,29 +1,20 @@
-import PropTypes from 'prop-types';
 import { Formik, FormikHelpers } from 'formik';
-import RootStore from '../Stores/index';
 import React from 'react';
-import { withRouter } from 'react-router-dom';
 import { Button, Icon, PasswordMeter, PasswordInput, FormSubmitButton, Loading, Modal, Text } from '@deriv/components';
-import {
-    routes,
-    validLength,
-    validPassword,
-    getErrorMessages,
-    CFD_PLATFORMS,
-    WS,
-    redirectToLogin,
-} from '@deriv/shared';
+import { validLength, validPassword, validMT5Password, getErrorMessages, WS, redirectToLogin } from '@deriv/shared';
 import { localize, Localize, getLanguage } from '@deriv/translations';
-import { connect } from '../Stores/connect';
 import { getMtCompanies, TMtCompanies } from '../Stores/Modules/CFD/Helpers/cfd-config';
 import { TResetPasswordIntent, TCFDResetPasswordModal, TError } from './props.types';
+import { observer, useStore } from '@deriv/stores';
+import { useCfdStore } from '../Stores/Modules/CFD/Helpers/useCfdStores';
+import { CFD_PLATFORMS } from '../Helpers/cfd-config';
 
-const ResetPasswordIntent = ({ current_list, context, children, is_eu, ...props }: TResetPasswordIntent) => {
+const ResetPasswordIntent = ({ current_list, children, is_eu, ...props }: TResetPasswordIntent) => {
     const reset_password_intent = localStorage.getItem('cfd_reset_password_intent');
     const reset_password_type = localStorage.getItem('cfd_reset_password_type') || 'main'; // Default to main
     const has_intent =
         reset_password_intent &&
-        /(real|demo)\.(financial_stp|financial|synthetic|synthetic_svg|synthetic_bvi|financial_svg|financial_bvi|financial_fx|financial_v)/.test(
+        /(real|demo)\.(financial|financial_demo|financial_stp|financial_svg|financial_bvi|financial_fx|financial_v|synthetic|synthetic_svg|synthetic_bvi|synthetic_v|all_swap_free_svg|all_zero_spread_bvi|dxtrade|all)/.test(
             reset_password_intent
         );
 
@@ -31,7 +22,9 @@ const ResetPasswordIntent = ({ current_list, context, children, is_eu, ...props 
     if (has_intent && current_list) {
         [server, group, type] = reset_password_intent.split('.');
         login = current_list[`mt5.${group}.${type}@${server}`].login;
-        title = getMtCompanies(is_eu)[group as keyof TMtCompanies][type as keyof TMtCompanies['demo' | 'real']].title;
+        title =
+            getMtCompanies(is_eu)[group as keyof TMtCompanies][type as keyof TMtCompanies['demo' | 'real']]?.title ??
+            '';
     } else if (current_list) {
         [server, group, type] = (Object.keys(current_list).pop() as string).split('.');
         login = current_list[`mt5.${group}.${type}@${server}`]?.login ?? '';
@@ -52,18 +45,21 @@ const ResetPasswordIntent = ({ current_list, context, children, is_eu, ...props 
     });
 };
 
-const CFDResetPasswordModal = ({
-    current_list,
-    email,
-    is_cfd_reset_password_modal_enabled,
-    is_eu,
-    is_pre_appstore,
-    context,
-    is_logged_in,
-    platform,
-    setCFDPasswordResetModal,
-    history,
-}: TCFDResetPasswordModal) => {
+const CFDResetPasswordModal = observer(({ platform }: TCFDResetPasswordModal) => {
+    const { client, ui } = useStore();
+
+    const { email, is_eu, is_logged_in } = client;
+    const { is_cfd_reset_password_modal_enabled, setCFDPasswordResetModal } = ui;
+
+    const { current_list } = useCfdStore();
+
+    React.useEffect(() => {
+        if (!/reset-password/.test(location.hash)) {
+            return;
+        }
+        setCFDPasswordResetModal(true);
+    }, [setCFDPasswordResetModal]);
+
     const [state, setState] = React.useState<{
         error_code: string | number | undefined;
         has_error: boolean;
@@ -90,25 +86,27 @@ const CFDResetPasswordModal = ({
         localStorage.removeItem('cfd_reset_password_intent');
         localStorage.removeItem('cfd_reset_password_type');
         localStorage.removeItem('cfd_reset_password_code');
-        if (history.location.pathname !== routes.mt5 && !is_pre_appstore) {
-            history.push(`${routes.mt5}`);
-        }
     };
     const validatePassword = (values: { new_password: string }) => {
         const errors: { new_password?: string } = {};
+        const max_length = platform === CFD_PLATFORMS.DXTRADE ? 25 : 16;
 
         if (
             !validLength(values.new_password, {
                 min: 8,
-                max: 25,
+                max: max_length,
             })
         ) {
             errors.new_password = localize('You should enter {{min_number}}-{{max_number}} characters.', {
                 min_number: 8,
-                max_number: 25,
+                max_number: max_length,
             });
         } else if (!validPassword(values.new_password)) {
             errors.new_password = getErrorMessages().password();
+        } else if (platform !== CFD_PLATFORMS.DXTRADE && !validMT5Password(values.new_password)) {
+            errors.new_password = localize(
+                'Please include at least 1 special character such as ( _ @ ? ! / # ) in your password.'
+            );
         }
         if (values.new_password.toLowerCase() === email.toLowerCase()) {
             errors.new_password = localize('Your password cannot be the same as your email address.');
@@ -155,7 +153,6 @@ const CFDResetPasswordModal = ({
     return (
         <Modal
             className='cfd-reset-password-modal'
-            context={context}
             is_open={is_cfd_reset_password_modal_enabled && !is_invalid_investor_token}
             toggleModal={() => setCFDPasswordResetModal(false)}
             title={
@@ -168,7 +165,7 @@ const CFDResetPasswordModal = ({
         >
             {!getIsListFetched() && !state.has_error && <Loading is_fullscreen={false} />}
             {getIsListFetched() && !state.has_error && !state.is_finished && (
-                <ResetPasswordIntent context={context} current_list={current_list} is_eu={is_eu}>
+                <ResetPasswordIntent current_list={current_list} is_eu={is_eu}>
                     {({ type, login }) => (
                         <Formik
                             initialValues={{ new_password: '' }}
@@ -207,6 +204,18 @@ const CFDResetPasswordModal = ({
                                                     )}
                                                 </PasswordMeter>
                                             </div>
+                                            {platform !== CFD_PLATFORMS.DXTRADE && (
+                                                <div className='cfd-reset-password__password-area'>
+                                                    <Text
+                                                        as='p'
+                                                        size='xs'
+                                                        align='center'
+                                                        className='cfd-reset-password__description2'
+                                                    >
+                                                        <Localize i18n_default_text='Your password must contain between 8-16 characters that include uppercase and lowercase letters, and at least one number and special character ( _ @ ? ! / # ).' />
+                                                    </Text>
+                                                </div>
+                                            )}
                                             {isSubmitting && <Loading is_fullscreen={false} />}
                                             {!isSubmitting && (
                                                 <FormSubmitButton
@@ -281,31 +290,6 @@ const CFDResetPasswordModal = ({
             )}
         </Modal>
     );
-};
+});
 
-CFDResetPasswordModal.propTypes = {
-    current_list: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
-    email: PropTypes.string,
-    is_cfd_reset_password_modal_enabled: PropTypes.bool,
-    is_eu: PropTypes.bool,
-    is_pre_appstore: PropTypes.bool,
-    is_logged_in: PropTypes.bool,
-    platform: PropTypes.string,
-    setCFDPasswordResetModal: PropTypes.func,
-    history: PropTypes.object,
-    context: PropTypes.object,
-};
-
-export default React.memo(
-    withRouter(
-        connect(({ modules: { cfd }, client, ui }: RootStore) => ({
-            email: client.email,
-            is_eu: client.is_eu,
-            is_cfd_reset_password_modal_enabled: ui.is_cfd_reset_password_modal_enabled,
-            setCFDPasswordResetModal: ui.setCFDPasswordResetModal,
-            current_list: cfd.current_list,
-            is_logged_in: client.is_logged_in,
-            is_pre_appstore: client.is_pre_appstore,
-        }))(CFDResetPasswordModal)
-    )
-);
+export default React.memo(CFDResetPasswordModal);

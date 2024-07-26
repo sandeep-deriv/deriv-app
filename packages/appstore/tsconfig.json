@@ -10,10 +10,12 @@
             "Constants/*": ["src/constants/*"],
             "Modules/*": ["src/modules/*"],
             "Services/*": ["src/services/*"],
+            "Hooks/*": ["src/hooks/*"],
             "Stores/*": ["src/stores/*"],
             "Stores": ["src/stores/index"],
             "Types": ["src/types"],
             "Utils": ["src/utils"],
+            "Helpers": ["src/helpers"],
             "@deriv/*": ["../*/src"]
         }
     },

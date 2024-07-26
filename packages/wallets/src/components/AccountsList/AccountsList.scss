@@ -1,0 +1,28 @@
+:focus-visible {
+    outline: none;
+}
+
+.wallets-accounts-list {
+    height: 100%;
+    width: 100%;
+
+    @include desktop {
+        border-radius: 0 0 1.6rem 1.6rem;
+    }
+
+    @include mobile {
+        padding: 1.6rem;
+        width: 100%;
+        height: auto;
+    }
+
+    &__tabs {
+        height: 5rem;
+        padding: 0.4rem;
+        border-radius: 6px;
+    }
+
+    &__tab {
+        border-radius: 4px;
+    }
+}

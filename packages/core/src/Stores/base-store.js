@@ -1,7 +1,6 @@
-import { action, intercept, observable, reaction, toJS, when, makeObservable } from 'mobx';
-import { isProduction, isEmptyObject } from '@deriv/shared';
+import { action, intercept, makeObservable, observable, reaction, toJS, when } from 'mobx';
 
-import Validator from 'Utils/Validator';
+import { isEmptyObject, isProduction, Validator } from '@deriv/shared';
 
 /**
  * BaseStore class is the base class for all defined stores in the application. It handles some stuff such as:
@@ -338,7 +337,7 @@ export default class BaseStore {
                 () => this.root_store.client.pre_switch_broadcast,
                 async () => {
                     try {
-                        const result = this.pre_switch_account_listener();
+                        const result = this.pre_switch_account_listener?.();
                         if (result && result.then && typeof result.then === 'function') {
                             result.then(() => {
                                 this.root_store.client.setPreSwitchAccount(false);

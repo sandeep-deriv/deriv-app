@@ -4,30 +4,20 @@ import {
     Modal,
     Tabs,
     Button,
-    DesktopWrapper,
     Div100vhContainer,
-    MobileWrapper,
     MultiStep,
     PageOverlay,
     ThemedScrollbars,
     UILoader,
     Text,
 } from '@deriv/components';
+import { useDevice } from '@deriv-com/ui';
 import { localize, Localize } from '@deriv/translations';
-import {
-    isMobile,
-    validLength,
-    validPassword,
-    getErrorMessages,
-    getCFDPlatformLabel,
-    CFD_PLATFORMS,
-} from '@deriv/shared';
+import { getCFDPlatformLabel } from '@deriv/shared';
 import { FormikErrors } from 'formik';
-import { connect } from '../Stores/connect';
 import CFDStore from '../Stores/Modules/CFD/cfd-store';
 import TradingPasswordManager from './trading-password-manager';
 import InvestorPasswordManager from './investor-password-manager';
-import RootStore from '../Stores/index';
 import {
     TCountdownComponent,
     TCFDPasswordReset,
@@ -37,6 +27,10 @@ import {
     TFormValues,
     TPasswordManagerModalFormValues,
 } from './props.types';
+import { observer, useStore } from '@deriv/stores';
+import { useCfdStore } from '../Stores/Modules/CFD/Helpers/useCfdStores';
+import { CFD_PLATFORMS } from '../Helpers/cfd-config';
+import { validatePassword } from '../Helpers/constants';
 
 const CountdownComponent = ({ count_from = 60, onTimeout }: TCountdownComponent) => {
     const [count, setCount] = React.useState<number>(count_from);
@@ -66,7 +60,6 @@ const CFDPasswordReset = ({
     account_type,
     account_group,
     server,
-    context,
     password_type,
 }: TCFDPasswordReset) => {
     const [is_resend_verification_requested, setResendVerification] = React.useState<boolean>(false);
@@ -156,38 +149,27 @@ const CFDPasswordManagerTabContent = ({
     setPasswordType,
     multi_step_ref,
     platform,
-    context,
     onChangeActiveTabIndex,
     account_group,
 }: TCFDPasswordManagerTabContent) => {
+    const { isDesktop } = useDevice();
     const [active_tab_index, setActiveTabIndex] = React.useState<number>(0);
     const [error_message_investor, setErrorMessageInvestor] = React.useState<string>('');
     const [is_submit_success_investor, setSubmitSuccessInvestor] = React.useState<boolean>(false);
 
     // view height - margin top and bottom of modal - modal title - modal content margin top and bottom - table title
     const container_height = 'calc(100vh - 84px - 5.6rem - 8.8rem - 4rem)';
-    const validatePassword = (values: TFormValues) => {
+    const validateNewPasswordPolicy = (values: TFormValues) => {
         const errors: FormikErrors<TFormValues> = {};
 
-        if (
-            !validLength(values.new_password, {
-                min: 8,
-                max: 25,
-            })
-        ) {
-            errors.new_password = localize('You should enter {{min_number}}-{{max_number}} characters.', {
-                min_number: 8,
-                max_number: 25,
-            });
-        } else if (!validPassword(values.new_password)) {
-            errors.new_password = getErrorMessages().password();
-        } else if (values.new_password.toLowerCase() === email.toLowerCase()) {
-            errors.new_password = localize('Your password cannot be the same as your email address.');
-        }
-
-        if (!values.old_password && values.old_password !== undefined) {
+        if (!values.old_password) {
             errors.old_password = localize('This field is required');
         }
+        if (!values.new_password) {
+            errors.new_password = localize('This field is required');
+        }
+
+        if (validatePassword(values.new_password)) errors.new_password = validatePassword(values.new_password);
 
         return errors;
     };
@@ -225,8 +207,8 @@ const CFDPasswordManagerTabContent = ({
 
     const trading_password_manager = (
         <React.Fragment>
-            <DesktopWrapper>
-                <ThemedScrollbars height={container_height} is_bypassed={isMobile()} autohide={false}>
+            {isDesktop ? (
+                <ThemedScrollbars height={container_height} is_bypassed={!isDesktop} autohide={false}>
                     <TradingPasswordManager
                         toggleModal={toggleModal}
                         platform={platform}
@@ -234,8 +216,7 @@ const CFDPasswordManagerTabContent = ({
                         account_group={account_group}
                     />
                 </ThemedScrollbars>
-            </DesktopWrapper>
-            <MobileWrapper>
+            ) : (
                 <Div100vhContainer className='cfd-password-manager__scroll-wrapper' height_offset='120px'>
                     <TradingPasswordManager
                         toggleModal={toggleModal}
@@ -244,7 +225,7 @@ const CFDPasswordManagerTabContent = ({
                         account_group={account_group}
                     />
                 </Div100vhContainer>
-            </MobileWrapper>
+            )}
         </React.Fragment>
     );
 
@@ -260,142 +241,137 @@ const CFDPasswordManagerTabContent = ({
                 {trading_password_manager}
             </div>
             <div label={localize('Investor password')}>
-                <DesktopWrapper>
+                {isDesktop ? (
                     <ThemedScrollbars height={container_height}>
                         <InvestorPasswordManager
                             is_submit_success_investor={is_submit_success_investor}
                             toggleModal={toggleModal}
                             error_message_investor={error_message_investor}
-                            validatePassword={validatePassword}
+                            validatePassword={validateNewPasswordPolicy}
                             onSubmit={onSubmit}
                             setPasswordType={setPasswordType}
                             multi_step_ref={multi_step_ref}
                         />
                     </ThemedScrollbars>
-                </DesktopWrapper>
-                <MobileWrapper>
+                ) : (
                     <Div100vhContainer className='cfd-password-manager__scroll-wrapper' height_offset='120px'>
                         <InvestorPasswordManager
                             is_submit_success_investor={is_submit_success_investor}
                             toggleModal={toggleModal}
                             error_message_investor={error_message_investor}
-                            validatePassword={validatePassword}
+                            validatePassword={validateNewPasswordPolicy}
                             onSubmit={onSubmit}
                             setPasswordType={setPasswordType}
                             multi_step_ref={multi_step_ref}
                         />
                     </Div100vhContainer>
-                </MobileWrapper>
+                )}
             </div>
         </Tabs>
     );
 };
 
-const CFDPasswordManagerModal = ({
-    enableApp,
-    email,
-    disableApp,
-    is_visible,
-    platform,
-    context,
-    selected_login,
-    toggleModal,
-    selected_account_type,
-    selected_account_group,
-    selected_server,
-    sendVerifyEmail,
-}: TCFDPasswordManagerModal) => {
-    const multi_step_ref: React.MutableRefObject<undefined> = React.useRef();
-    const [index, setIndex] = React.useState<number>(0);
+const CFDPasswordManagerModal = observer(
+    ({
+        is_visible,
+        platform,
+        selected_login,
+        toggleModal,
+        selected_account_type,
+        selected_account_group,
+        selected_server,
+    }: TCFDPasswordManagerModal) => {
+        const { client, ui } = useStore();
+        const { isDesktop } = useDevice();
 
-    const [password_type, setPasswordType] = React.useState('main');
+        const { email } = client;
+        const { enableApp, disableApp } = ui;
 
-    if (!selected_login) return null;
+        const { sendVerifyEmail } = useCfdStore();
 
-    const getTitle = () => {
-        return localize('Manage {{platform}} password', {
-            platform: getCFDPlatformLabel(platform),
-        });
-    };
+        const multi_step_ref: React.MutableRefObject<undefined> = React.useRef();
+        const [index, setIndex] = React.useState<number>(0);
 
-    const getHeader = (i: number) => {
-        if (i === 0) {
+        const [password_type, setPasswordType] = React.useState('main');
+
+        if (!selected_login) return null;
+
+        const getTitle = () => {
             return localize('Manage {{platform}} password', {
                 platform: getCFDPlatformLabel(platform),
             });
-        }
-        return localize('Manage password');
-    };
+        };
 
-    const onChangeActiveTabIndex = (i: number) => {
-        setIndex(i);
-    };
+        const getHeader = (i: number) => {
+            if (i === 0) {
+                return localize('Manage {{platform}} password', {
+                    platform: getCFDPlatformLabel(platform),
+                });
+            }
+            return localize('Manage password');
+        };
 
-    const steps = [
-        {
-            component: (
-                <CFDPasswordManagerTabContent
-                    email={email}
-                    selected_login={selected_login}
-                    toggleModal={toggleModal}
-                    setPasswordType={setPasswordType}
-                    multi_step_ref={multi_step_ref}
-                    platform={platform}
-                    context={context}
-                    onChangeActiveTabIndex={onChangeActiveTabIndex}
-                    account_group={selected_account_group}
-                />
-            ),
-        },
-        {
-            component: (
-                <CFDPasswordReset
-                    server={selected_server}
-                    context={context}
-                    sendVerifyEmail={sendVerifyEmail}
-                    account_type={selected_account_type}
-                    account_group={selected_account_group}
-                    password_type={password_type}
-                />
-            ),
-        },
-    ];
+        const onChangeActiveTabIndex = (i: number) => {
+            setIndex(i);
+        };
 
-    return (
-        <React.Suspense fallback={<UILoader />}>
-            <DesktopWrapper>
-                <Modal
-                    className='cfd-password-manager__modal'
-                    disableApp={disableApp}
-                    enableApp={enableApp}
-                    is_open={is_visible}
-                    title={getTitle()}
-                    toggleModal={toggleModal}
-                    height='688px'
-                    width='904px'
-                    should_header_stick_body={false}
-                >
-                    <CFDPasswordManagerTabContentWrapper steps={steps} multi_step_ref={multi_step_ref} />
-                </Modal>
-            </DesktopWrapper>
-            <MobileWrapper>
-                <PageOverlay
-                    is_open={is_visible}
-                    portal_id='deriv_app'
-                    header={getHeader(index)}
-                    onClickClose={toggleModal}
-                >
-                    <CFDPasswordManagerTabContentWrapper steps={steps} multi_step_ref={multi_step_ref} />
-                </PageOverlay>
-            </MobileWrapper>
-        </React.Suspense>
-    );
-};
+        const steps = [
+            {
+                component: (
+                    <CFDPasswordManagerTabContent
+                        email={email}
+                        selected_login={selected_login}
+                        toggleModal={toggleModal}
+                        setPasswordType={setPasswordType}
+                        multi_step_ref={multi_step_ref}
+                        platform={platform}
+                        onChangeActiveTabIndex={onChangeActiveTabIndex}
+                        account_group={selected_account_group}
+                    />
+                ),
+            },
+            {
+                component: (
+                    <CFDPasswordReset
+                        server={selected_server}
+                        sendVerifyEmail={sendVerifyEmail}
+                        account_type={selected_account_type}
+                        account_group={selected_account_group}
+                        password_type={password_type}
+                    />
+                ),
+            },
+        ];
 
-export default connect(({ modules: { cfd }, client, ui }: RootStore) => ({
-    email: client.email,
-    enableApp: ui.enableApp,
-    disableApp: ui.disableApp,
-    is_eu: client.is_eu,
-    sendVerifyEmail: cfd.sendVerifyEmail,
-}))(CFDPasswordManagerModal);
+        return (
+            <React.Suspense fallback={<UILoader />}>
+                {isDesktop ? (
+                    <Modal
+                        className='cfd-password-manager__modal'
+                        disableApp={disableApp}
+                        enableApp={enableApp}
+                        is_open={is_visible}
+                        title={getTitle()}
+                        toggleModal={toggleModal}
+                        height='688px'
+                        width='90.4rem'
+                        should_header_stick_body={false}
+                    >
+                        <CFDPasswordManagerTabContentWrapper steps={steps} multi_step_ref={multi_step_ref} />
+                    </Modal>
+                ) : (
+                    <PageOverlay
+                        is_open={is_visible}
+                        portal_id='deriv_app'
+                        header={getHeader(index)}
+                        onClickClose={toggleModal}
+                    >
+                        <CFDPasswordManagerTabContentWrapper steps={steps} multi_step_ref={multi_step_ref} />
+                    </PageOverlay>
+                )}
+            </React.Suspense>
+        );
+    }
+);
+
+export default CFDPasswordManagerModal;

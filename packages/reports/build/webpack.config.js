@@ -6,9 +6,9 @@ module.exports = function (env) {
 
     return {
         context: path.resolve(__dirname, '../'),
-        devtool: IS_RELEASE ? undefined : 'eval-cheap-module-source-map',
+        devtool: IS_RELEASE ? 'source-map' : 'eval-cheap-module-source-map',
         entry: {
-            reports: path.resolve(__dirname, '../src', 'index.jsx'),
+            reports: path.resolve(__dirname, '../src', 'index'),
         },
         mode: IS_RELEASE ? 'production' : 'development',
         module: {
@@ -40,16 +40,16 @@ module.exports = function (env) {
                 'react-router-dom': 'react-router-dom',
                 'react-router': 'react-router',
                 mobx: 'mobx',
-                'mobx-react': 'mobx-react',
                 '@deriv/shared': '@deriv/shared',
                 '@deriv/components': '@deriv/components',
                 '@deriv/translations': '@deriv/translations',
-                '@deriv/deriv-charts': '@deriv/deriv-charts',
+                '@deriv-com/analytics': '@deriv-com/analytics',
             },
             /^@deriv\/shared\/.+$/,
             /^@deriv\/components\/.+$/,
             /^@deriv\/translations\/.+$/,
             /^@deriv\/account\/.+$/,
+            /^@deriv\/analytics\/.+$/,
         ],
         target: 'web',
         plugins: plugins(base, false),

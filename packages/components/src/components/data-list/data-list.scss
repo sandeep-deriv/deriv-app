@@ -79,6 +79,9 @@
         &--wrapper:not(.data-list__item--dynamic-height-wrapper) {
             height: 100%;
         }
+        &--timer {
+            flex: none;
+        }
     }
     &__desc {
         &--wrapper {

@@ -2,9 +2,14 @@ import React from 'react';
 import { Table, Div100vhContainer, Text, ThemedScrollbars } from '@deriv/components';
 import { localize } from '@deriv/translations';
 import { isDesktop, isMobile } from '@deriv/shared';
-import { cfd_content, options_content, TRegulatorsContentProps, TRowItem } from 'Constants/regulators-modal-content';
+import {
+    getCFDContents,
+    getOptionsContents,
+    TRegulatorsContentProps,
+    TRowItem,
+} from 'Constants/regulators-modal-content';
 
-const Row = ({ attribute, content }: TRegulatorsContentProps) => {
+const Row = ({ attribute, content, id }: TRegulatorsContentProps) => {
     return (
         <Table.Row className='regulators-compare-table__table-row'>
             <Table.Cell fixed>
@@ -17,7 +22,7 @@ const Row = ({ attribute, content }: TRegulatorsContentProps) => {
                     {Array.isArray(content[rowKey]) ? (
                         (content[rowKey] as TRowItem[])?.map(item => (
                             <Text
-                                key={rowKey}
+                                key={`${id}_${rowKey}_${item?.text}`}
                                 as='p'
                                 color={item?.options?.color ?? 'prominent'}
                                 weight={item?.options?.weight ?? 'normal'}
@@ -59,7 +64,7 @@ const RegulatorsCompareModalContent = () => {
                             <Table.Row className={'regulators-compare-table__table-header'}>
                                 <Table.Head fixed className='regulators-compare-table__table-empty-cell' />
                                 <Table.Head className='regulators-compare-table__table-header-item'>
-                                    {localize('Non-EU regulations')}
+                                    {localize('Non-EU regulation')}
                                 </Table.Head>
                                 <Table.Head className='regulators-compare-table__table-header-item'>
                                     {localize('EU regulation')}
@@ -69,12 +74,12 @@ const RegulatorsCompareModalContent = () => {
 
                         <Table.Body>
                             <div className='regulators-compare-table__table-row-wrapper'>
-                                {cfd_content.map(row => (
+                                {getCFDContents().map(row => (
                                     <Row key={row.id} {...row} />
                                 ))}
                             </div>
                             <div className='regulators-compare-table__table-row-wrapper'>
-                                {options_content.map(row => (
+                                {getOptionsContents().map(row => (
                                     <Row key={row.id} {...row} />
                                 ))}
                             </div>

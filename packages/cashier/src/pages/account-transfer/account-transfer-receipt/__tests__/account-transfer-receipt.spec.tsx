@@ -3,14 +3,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Router } from 'react-router';
 import { createBrowserHistory } from 'history';
 import { routes } from '@deriv/shared';
-import { StoreProvider } from '@deriv/stores';
 import AccountTransferReceipt from '../account-transfer-receipt';
+import CashierProviders from '../../../../cashier-providers';
+import { mockStore } from '@deriv/stores';
 
 describe('<AccountTransferReceipt />', () => {
-    let mockRootStore;
+    let mockRootStore: ReturnType<typeof mockStore>;
     const onClose = jest.fn();
     beforeEach(() => {
-        mockRootStore = {
+        mockRootStore = mockStore({
             client: {
                 loginid: 'CR90000401',
                 switchAccount: jest.fn(),
@@ -21,6 +22,9 @@ describe('<AccountTransferReceipt />', () => {
             },
             common: {
                 is_from_derivgo: false,
+            },
+            traders_hub: {
+                closeAccountTransferModal: jest.fn(),
             },
             modules: {
                 cashier: {
@@ -45,29 +49,28 @@ describe('<AccountTransferReceipt />', () => {
                             value: 'CR90000400',
                         },
                         receipt: { amount_transferred: '100' },
-                        setShouldSwitchAccout: jest.fn(),
+                        setShouldSwitchAccount: jest.fn(),
                     },
                 },
             },
-        };
+        });
     });
 
     const history = createBrowserHistory();
     const renderAccountTransferReceipt = () =>
         render(<AccountTransferReceipt onClose={onClose} />, {
             wrapper: ({ children }) => (
-                <StoreProvider store={mockRootStore}>
+                <CashierProviders store={mockRootStore}>
                     <Router history={history}>{children}</Router>
-                </StoreProvider>
+                </CashierProviders>
             ),
         });
 
-    it('should show "Your funds have been transferred" message, "View transaction details" and "Make a new transfer" buttons', () => {
+    it('should show "Your funds have been transferred" message and "View transaction details" buttons', () => {
         renderAccountTransferReceipt();
 
         expect(screen.getByText('Your funds have been transferred')).toBeInTheDocument();
         expect(screen.getByText('View transaction details')).toBeInTheDocument();
-        expect(screen.getByText('Make a new transfer')).toBeInTheDocument();
     });
 
     it('should redirect to "/reports/statement", when the "View transaction details" button was clicked', () => {
@@ -77,15 +80,6 @@ describe('<AccountTransferReceipt />', () => {
         fireEvent.click(view_transaction_btn);
 
         expect(history.location.pathname).toBe(routes.statement);
-    });
-
-    it('should reset account transfer, when the "Make a new transfer" button was clicked', () => {
-        renderAccountTransferReceipt();
-
-        const make_a_new_transfer_btn = screen.getByText('Make a new transfer');
-        fireEvent.click(make_a_new_transfer_btn);
-
-        expect(mockRootStore.modules.cashier.account_transfer.resetAccountTransfer).toHaveBeenCalledTimes(1);
     });
 
     it('should not show "We’re switching over to your {{currency}} account to view the transaction." message, when the "Cancel" button was clicked', async () => {
@@ -111,7 +105,7 @@ describe('<AccountTransferReceipt />', () => {
         });
     });
 
-    it('should redirect to "/reports/statement", when the "Switch to {currency} account" button was clicked', () => {
+    it('should redirect to "/reports/statement", when the "Switch to {currency} account" button was clicked', async () => {
         const modal_root_el = document.createElement('div');
         modal_root_el.setAttribute('id', 'modal_root');
         document.body.appendChild(modal_root_el);
@@ -124,6 +118,8 @@ describe('<AccountTransferReceipt />', () => {
         const switch_to_currency_acc = screen.getByText('Switch to BTC account');
         fireEvent.click(switch_to_currency_acc);
 
-        expect(history.location.pathname).toBe(routes.statement);
+        await waitFor(() => {
+            expect(history.location.pathname).toBe(routes.statement);
+        });
     });
 });

@@ -15,12 +15,11 @@ export const hasAllRequiredBlocks = () => {
 export const onWorkspaceResize = () => {
     const workspace = Blockly.derivWorkspace;
     if (workspace) {
-        workspace.getAllFields().forEach(field => field.forceRerender());
+        // kept this commented to fix slow rendering issue
+        //workspace.getAllFields().forEach(field => field.forceRerender());
 
         const el_scratch_div = document.getElementById('scratch_div');
         if (el_scratch_div) {
-            el_scratch_div.style.width = '100vw';
-            el_scratch_div.style.height = 'var(--bot-content-height)';
             Blockly.svgResize(workspace);
         }
     }
@@ -38,4 +37,10 @@ export const removeLimitedBlocks = (workspace, block_types) => {
             });
         }
     });
+};
+
+export const isDbotRTL = () => {
+    const htmlElement = document.documentElement;
+    const dirValue = htmlElement.getAttribute('dir');
+    return dirValue === 'rtl';
 };

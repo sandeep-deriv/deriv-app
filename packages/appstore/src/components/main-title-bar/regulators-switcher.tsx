@@ -1,11 +1,11 @@
 import React, { HTMLAttributes } from 'react';
 import classNames from 'classnames';
 import { Icon, Text } from '@deriv/components';
-import './regulators-switcher.scss';
-import { useStores } from 'Stores/index';
+import { localize } from '@deriv/translations';
 import { region_availability } from 'Constants/platform-config';
-import { observer } from 'mobx-react-lite';
 import RegulationsSwitcherLoader from 'Components/pre-loader/regulations-switcher-loader';
+import { useStore, observer } from '@deriv/stores';
+import './regulators-switcher.scss';
 
 type SwitcherItemProps = {
     onClick: () => void;
@@ -15,23 +15,27 @@ type SwitcherItemProps = {
 const SwitcherItem = ({ children, is_selected, ...props }: SwitcherItemProps & HTMLAttributes<HTMLDivElement>) => {
     return (
         <div className={classNames('item', { 'is-selected': is_selected })} {...props}>
-            <Text size='xs' weight={is_selected ? 'bold' : 'normal'}>
+            <Text size='xs' weight={is_selected ? 'bold' : 'normal'} color={is_selected ? 'prominent' : 'general'}>
                 {children}
             </Text>
         </div>
     );
 };
 
-const RegulatorSwitcher = () => {
-    const { traders_hub, client } = useStores();
+const RegulatorSwitcher = observer(() => {
+    const { traders_hub, client } = useStore();
     const { toggleRegulatorsCompareModal } = traders_hub;
     const { is_switching } = client;
 
     return (
         <div className='regulators-switcher__container'>
             <div className='regulators-switcher--text'>
-                <Text>Regulation:</Text>
-                <div className='regulators-switcher--icon' onClick={() => toggleRegulatorsCompareModal()}>
+                <Text>{localize('Regulation:')}</Text>
+                <div
+                    data-testid='dt_regulators-switcher-icon'
+                    className='regulators-switcher--icon'
+                    onClick={() => toggleRegulatorsCompareModal()}
+                >
                     <Icon icon='IcInfoOutline' />
                 </div>
             </div>
@@ -50,12 +54,12 @@ const RegulatorSwitcher = () => {
                     })}
                 </div>
             ) : (
-                <div className='regulators-switcher__container loader'>
+                <div className='regulators-switcher__container content-loader'>
                     <RegulationsSwitcherLoader />
                 </div>
             )}
         </div>
     );
-};
+});
 
-export default observer(RegulatorSwitcher);
+export default RegulatorSwitcher;

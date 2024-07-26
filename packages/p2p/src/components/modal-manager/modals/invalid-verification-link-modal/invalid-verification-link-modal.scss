@@ -1,0 +1,22 @@
+.invalid-verification-link-modal {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+
+    @include mobile {
+        padding: 0.8rem 1.6rem;
+    }
+
+    &__footer {
+        align-self: center;
+
+        &--invalid-token {
+            padding-top: 0;
+
+            @include mobile {
+                padding-top: 1.6rem;
+            }
+        }
+    }
+}

@@ -1,21 +1,22 @@
 import classNames from 'classnames';
-import PropTypes from 'prop-types';
 import * as React from 'react';
 import { withRouter } from 'react-router';
 import NetworkStatus, {
     AccountLimits as AccountLimitsFooter,
     EndpointNote,
-    GoToDeriv,
     HelpCentre,
     RegulatoryInformation,
     ResponsibleTrading,
     ToggleFullScreen,
     ToggleSettings,
+    ToggleLanguageSettings,
 } from 'App/Components/Layout/Footer';
 import LiveChat from 'App/Components/Elements/LiveChat';
 import WhatsApp from 'App/Components/Elements/WhatsApp/index.ts';
-import { connect } from 'Stores/connect';
 import ServerTime from '../server-time.jsx';
+import { observer, useStore } from '@deriv/stores';
+import { useRemoteConfig } from '@deriv/api';
+import { useIsMounted } from '@deriv/shared';
 
 const FooterIconSeparator = () => <div className='footer-icon-separator' />;
 
@@ -30,21 +31,27 @@ const FooterExtensionRenderer = (footer_extension, idx) => {
     );
 };
 
-const Footer = ({
-    enableApp,
-    footer_extensions,
-    is_app_disabled,
-    is_eu,
-    is_logged_in,
-    is_route_modal_on,
-    is_settings_modal_on,
-    is_virtual,
-    disableApp,
-    toggleSettingsModal,
-    settings_extension,
-    landing_company_shortcode,
-    is_pre_appstore,
-}) => {
+const Footer = observer(() => {
+    const { client, common, ui, traders_hub } = useStore();
+    const { has_wallet, is_logged_in, landing_company_shortcode, is_eu, is_virtual } = client;
+    const { current_language } = common;
+    const {
+        enableApp,
+        footer_extensions,
+        settings_extension,
+        is_app_disabled,
+        is_route_modal_on,
+        is_settings_modal_on,
+        is_language_settings_modal_on,
+        disableApp,
+        toggleSettingsModal,
+        toggleLanguageSettingsModal,
+    } = ui;
+    const isMounted = useIsMounted();
+    const { data } = useRemoteConfig(isMounted());
+    const { cs_chat_livechat, cs_chat_whatsapp } = data;
+    const { show_eu_related_content } = traders_hub;
+
     let footer_extensions_left = [];
     let footer_extensions_right = [];
     if (footer_extensions.filter) {
@@ -68,14 +75,17 @@ const Footer = ({
             <ServerTime />
             <div className='footer__links'>
                 {footer_extensions_right.map(FooterExtensionRenderer)}
-                <WhatsApp />
-                <LiveChat />
+                {cs_chat_whatsapp && <WhatsApp />}
+                {cs_chat_livechat && <LiveChat />}
                 <FooterIconSeparator />
-                <GoToDeriv />
                 <ResponsibleTrading />
                 {is_logged_in && <AccountLimitsFooter />}
                 {is_logged_in && !is_virtual && (
-                    <RegulatoryInformation landing_company={landing_company_shortcode} is_eu={is_eu} />
+                    <RegulatoryInformation
+                        landing_company={landing_company_shortcode}
+                        is_eu={is_eu}
+                        show_eu_related_content={show_eu_related_content}
+                    />
                 )}
                 <FooterIconSeparator />
                 <HelpCentre />
@@ -85,46 +95,18 @@ const Footer = ({
                     disableApp={disableApp}
                     enableApp={enableApp}
                     settings_extension={settings_extension}
-                    is_pre_appstore={is_pre_appstore}
                 />
+                {!has_wallet && (
+                    <ToggleLanguageSettings
+                        is_settings_visible={is_language_settings_modal_on}
+                        toggleSettings={toggleLanguageSettingsModal}
+                        lang={current_language}
+                    />
+                )}
                 <ToggleFullScreen />
             </div>
         </footer>
     );
-};
+});
 
-Footer.propTypes = {
-    is_app_disabled: PropTypes.bool,
-    is_logged_in: PropTypes.bool,
-    is_route_modal_on: PropTypes.bool,
-    is_settings_modal_on: PropTypes.bool,
-    landing_company_shortcode: PropTypes.string,
-    location: PropTypes.object,
-    toggleSettingsModal: PropTypes.func,
-    settings_extension: PropTypes.array,
-    is_virtual: PropTypes.bool,
-    is_eu: PropTypes.bool,
-    disableApp: PropTypes.func,
-    enableApp: PropTypes.func,
-    footer_extensions: PropTypes.array,
-    is_pre_appstore: PropTypes.bool,
-};
-
-export default withRouter(
-    connect(({ client, ui }) => ({
-        enableApp: ui.enableApp,
-        footer_extensions: ui.footer_extensions,
-        settings_extension: ui.settings_extension,
-        is_app_disabled: ui.is_app_disabled,
-        is_route_modal_on: ui.is_route_modal_on,
-        is_logged_in: client.is_logged_in,
-        is_eu: client.is_eu,
-        is_loading: ui.is_loading,
-        is_settings_modal_on: ui.is_settings_modal_on,
-        is_virtual: client.is_virtual,
-        landing_company_shortcode: client.landing_company_shortcode,
-        disableApp: ui.disableApp,
-        toggleSettingsModal: ui.toggleSettingsModal,
-        is_pre_appstore: client.is_pre_appstore,
-    }))(Footer)
-);
+export default withRouter(Footer);

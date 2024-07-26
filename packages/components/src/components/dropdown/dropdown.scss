@@ -2,6 +2,7 @@
     &__label {
         position: absolute;
         font-size: var(--text-size-xs);
+        inset-inline-start: 0;
         transform: translate(0.5rem, -1rem) scale(0.75);
         z-index: 2;
         color: var(--text-prominent);
@@ -30,7 +31,6 @@
         &:active,
         &:focus {
             outline: 0;
-            border-color: var(--border-active);
         }
         &-text {
             padding-left: 1em;
@@ -69,7 +69,6 @@
             }
         }
         &--duration {
-            border: none !important;
             margin-top: 1rem;
             .dc-dropdown__display-text {
                 color: var(--text-general) !important;
@@ -172,6 +171,9 @@
         & .dc-dropdown__label {
             color: var(--brand-red-coral) !important;
         }
+        & .dc-dropdown__display-placeholder-text {
+            color: var(--brand-red-coral) !important;
+        }
     }
     &__list {
         left: 0;
@@ -203,6 +205,7 @@
 
             &--enter,
             &--exit {
+                /*rtl:ignore*/
                 transform: scale(1, 1) translate3d(2em, 0, 0px);
                 opacity: 0;
             }
@@ -235,7 +238,9 @@
             }
         }
         .dc-dropdown__select-arrow {
+            /*rtl:ignore*/
             left: 0.6em;
+            /*rtl:ignore*/
             right: unset;
         }
     }
@@ -258,7 +263,7 @@
             border: 1px solid var(--general-disabled);
 
             &-text {
-                color: var(--text-disabled);
+                color: var(--text-less-prominent);
             }
         }
     }
@@ -268,7 +273,8 @@
         min-width: 15rem;
         width: 100%;
 
-        &:not(.cfd-personal-details-modal__form *) {
+        &:not(.cfd-personal-details-modal__form *):not(.trade-container__multiplier-dropdown):not(
+                .dc-dropdown--left):not(.contract-type-info__dropdown) {
             margin-top: unset;
         }
 
@@ -311,4 +317,10 @@
 .suffix-icon {
     position: absolute;
     left: 20px;
+    transition: transform 0.2s ease;
+    transform: rotate(0deg);
+
+    &--flip {
+        transform: rotate(-180deg);
+    }
 }

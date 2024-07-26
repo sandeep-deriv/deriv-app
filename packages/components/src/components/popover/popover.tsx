@@ -1,9 +1,10 @@
 import classNames from 'classnames';
 import React, { RefObject } from 'react';
 import { ArrowContainer, Popover as TinyPopover } from 'react-tiny-popover';
+import { useDevice } from '@deriv-com/ui';
 import Icon from '../icon';
 import Text from '../text';
-import { useHover, useHoverCallback } from '../../hooks/use-hover';
+import { useHover, useHoverCallback } from '../../hooks';
 import { TPopoverProps } from '../types';
 
 const Popover = ({
@@ -29,21 +30,28 @@ const Popover = ({
     relative_render = false,
     should_disable_pointer_events = false,
     should_show_cursor,
-    window_border,
     zIndex = '1',
     data_testid,
+    arrow_styles,
 }: React.PropsWithChildren<TPopoverProps>) => {
     const ref = React.useRef<HTMLDivElement | undefined>();
     const [popover_ref, setPopoverRef] = React.useState<HTMLDivElement | undefined>(undefined);
-
+    const [is_bubble_visible, setIsBubbleVisible] = React.useState(false);
+    const { isDesktop } = useDevice();
     const [hover_ref, is_hovered] = useHover(null, true);
     const [bubble_hover_ref, is_bubble_hovered] = useHoverCallback();
+    const should_toggle_on_target_tap = React.useMemo(() => !isDesktop && is_open === undefined, [isDesktop, is_open]);
 
     React.useEffect(() => {
         if (ref.current) {
             setPopoverRef(ref.current);
         }
     }, [has_error]);
+    React.useEffect(() => {
+        if (!is_hovered && should_toggle_on_target_tap) {
+            setIsBubbleVisible(false);
+        }
+    }, [is_hovered, should_toggle_on_target_tap]);
 
     const onMouseEnter = () => {
         if (onBubbleOpen) onBubbleOpen();
@@ -54,25 +62,31 @@ const Popover = ({
     };
 
     const icon_class_name = classNames(classNameTargetIcon, icon);
+    const is_open_on_focus = is_hovered && message && (!should_toggle_on_target_tap || is_bubble_visible);
 
     return (
         <div
-            ref={hover_ref as RefObject<HTMLDivElement>}
+            ref={hover_ref as RefObject<HTMLDivElement & SVGSVGElement>}
             className={classNames({ 'dc-popover__wrapper': relative_render })}
-            onClick={onClick}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                onClick(e);
+                if (should_toggle_on_target_tap) setIsBubbleVisible(!is_bubble_visible);
+            }}
             data-testid='dt_popover_wrapper'
         >
             {relative_render && (
                 <div className='dc-popover__container' style={{ zIndex }}>
-                    <div ref={ref as RefObject<HTMLDivElement>} className='dc-popover__container-relative' />
+                    <div
+                        ref={ref as RefObject<HTMLDivElement>}
+                        className='dc-popover__container-relative'
+                        data-testid='dt_popover_relative_container'
+                    />
                 </div>
             )}
             {(popover_ref || !relative_render) && (
                 <TinyPopover
                     isOpen={
-                        (is_bubble_hover_enabled
-                            ? is_open ?? ((is_hovered && message) || (is_bubble_hover_enabled && is_bubble_hovered))
-                            : is_open ?? (is_hovered && message)) as boolean
+                        is_open ?? ((is_open_on_focus || (is_bubble_hover_enabled && is_bubble_hovered)) as boolean)
                     }
                     positions={[alignment]}
                     padding={margin + 8}
@@ -160,7 +174,9 @@ const Popover = ({
                                               margin: 'auto',
                                               bottom: '0px',
                                           }
-                                        : {}
+                                        : {
+                                              ...arrow_styles,
+                                          }
                                 }
                             >
                                 <div

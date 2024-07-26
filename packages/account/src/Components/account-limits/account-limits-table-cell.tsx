@@ -1,5 +1,5 @@
-import * as React from 'react';
-import classNames from 'classnames';
+import React from 'react';
+import clsx from 'clsx';
 import { Text } from '@deriv/components';
 
 type TAccountLimitsTableCell = {
@@ -19,30 +19,28 @@ const AccountLimitsTableCell = ({
     const text_size = is_hint ? 'xxxs' : 'xxs';
 
     return (
-        <React.Fragment>
-            <td
-                className={classNames('da-account-limits__table-cell', {
-                    'da-account-limits__table-cell--left': align !== 'right',
-                    'da-account-limits__table-cell--right': align === 'right',
-                    'da-account-limits__table-cell--submarket': level === 'submarket',
-                })}
-                data-testid='account_limit_table_cell'
-            >
-                {children && (
-                    <Text
-                        align={align}
-                        as='p'
-                        color='prominent'
-                        size={text_size}
-                        line_height='m'
-                        data-testid='account_limit_table_cell_text'
-                    >
-                        {children}
-                    </Text>
-                )}
-                {renderExtraInfo && renderExtraInfo()}
-            </td>
-        </React.Fragment>
+        <td
+            className={clsx('da-account-limits__table-cell', {
+                'da-account-limits__table-cell--left': align !== 'right',
+                'da-account-limits__table-cell--right': align === 'right',
+                'da-account-limits__table-cell--submarket': level === 'submarket',
+            })}
+            data-testid='account_limit_table_cell'
+        >
+            {children && (
+                <Text
+                    align={align}
+                    as='p'
+                    color='prominent'
+                    size={text_size}
+                    line_height='m'
+                    data-testid='account_limit_table_cell_text'
+                >
+                    {children}
+                </Text>
+            )}
+            {renderExtraInfo?.()}
+        </td>
     );
 };
 

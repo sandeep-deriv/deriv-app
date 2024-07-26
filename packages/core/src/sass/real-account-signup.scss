@@ -16,7 +16,7 @@
         & .dc-text {
             text-align: justify;
         }
-        @include mobile {
+        @include mobile-or-tablet-screen {
             padding: 0 1.6rem;
         }
     }
@@ -54,7 +54,7 @@
         align-items: center;
         height: 100%;
 
-        @include mobile {
+        @include mobile-or-tablet-screen {
             display: unset;
             position: relative;
         }
@@ -71,9 +71,8 @@
                 width: 45%;
                 justify-content: unset;
 
-                @include mobile {
+                @include mobile-or-tablet-screen {
                     width: 100%;
-                    padding: 0 1.2rem;
                     overflow-y: unset;
                     justify-content: unset;
                 }
@@ -91,6 +90,10 @@
                 }
                 .spacer {
                     margin: 1.6rem 0;
+                }
+
+                &--idv {
+                    width: 100%;
                 }
             }
 
@@ -119,7 +122,7 @@
                 width: 100%;
                 margin-bottom: 2rem;
 
-                @include mobile {
+                @include mobile-or-tablet-screen {
                     margin: 0 0 1.8rem;
                 }
 
@@ -142,7 +145,7 @@
 
             &__submit-button {
                 margin-left: 0.8rem;
-                @include mobile {
+                @include mobile-or-tablet-screen {
                     margin-right: unset;
                 }
             }
@@ -154,11 +157,78 @@
         height: 100%;
         position: relative;
 
-        @include mobile {
+        @include mobile-or-tablet-screen {
             max-height: calc(100% - 5rem);
         }
     }
-    @include mobile {
+    @include mobile-or-tablet-screen {
         overflow: hidden;
+    }
+}
+
+.idv-form {
+    display: grid;
+    grid-template-rows: unset !important;
+
+    .details-form {
+        @include mobile-or-tablet-screen {
+            overflow: unset;
+        }
+
+        @include desktop-screen {
+            padding: unset;
+        }
+    }
+}
+
+.mt5-layout {
+    @include desktop-screen {
+        display: flex;
+        flex-direction: column;
+    }
+    &__container {
+        overflow: auto;
+        height: 100%;
+        @include desktop-screen {
+            padding: 0.8rem 15.5rem;
+        }
+        @include mobile-or-tablet-screen {
+            padding: 1.6rem;
+        }
+    }
+
+    .proof-of-identity {
+        &__footer {
+            padding: 1.6rem 2.4rem;
+            justify-content: end;
+            display: flex;
+            border-top: 1px solid var(--general-section-1);
+            max-width: initial;
+
+            @include mobile-or-tablet-screen {
+                width: 100%;
+                position: relative;
+            }
+        }
+
+        &__submit-button {
+            @include mobile-or-tablet-screen {
+                width: 100%;
+                margin: unset;
+            }
+        }
+    }
+    .account-form__footer {
+        position: relative;
+    }
+}
+
+.proof-of-identity__container.mt5-layout {
+    justify-content: space-between;
+    height: 100%;
+    @include mobile-or-tablet-screen {
+        width: 100%;
+
+        padding: unset;
     }
 }

@@ -12,7 +12,7 @@ export type TRegulatorsContentProps = {
     content: TRegulatorContent;
 };
 
-export const cfd_content: TRegulatorsContentProps[] = [
+export const getCFDContents = (): TRegulatorsContentProps[] => [
     {
         id: 'cfds',
         attribute: localize('CFDs'),
@@ -105,7 +105,7 @@ export const cfd_content: TRegulatorsContentProps[] = [
     },
 ];
 
-export const options_content: TRegulatorsContentProps[] = [
+export const getOptionsContents = (): TRegulatorsContentProps[] => [
     {
         id: 'options',
         attribute: localize('Options & Multipliers'),
@@ -152,10 +152,6 @@ export const options_content: TRegulatorsContentProps[] = [
                 { text: localize('Cryptocurrencies') },
                 {
                     text: localize('*Boom 300 and Crash 300 Index'),
-                    options: { color: 'loss-danger', weight: 'bold' },
-                },
-                {
-                    text: localize('*Volatility 150 Index and Volatility 250 Index'),
                     options: { color: 'loss-danger', weight: 'bold' },
                 },
             ],

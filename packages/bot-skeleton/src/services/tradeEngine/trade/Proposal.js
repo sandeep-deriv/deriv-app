@@ -55,12 +55,9 @@ export default Engine =>
         }
 
         renewProposalsOnPurchase() {
-            this.unsubscribeProposals().then(() => this.requestProposals());
-        }
-
-        clearProposals() {
             this.data.proposals = [];
             this.store.dispatch(clearProposals());
+            this.requestProposals();
         }
 
         requestProposals() {
@@ -95,14 +92,11 @@ export default Engine =>
         }
 
         observeProposals() {
+            if (!api_base.api) return;
             const subscription = api_base.api.onMessage().subscribe(response => {
                 if (response.data.msg_type === 'proposal') {
                     const { passthrough, proposal } = response.data;
-                    if (
-                        proposal &&
-                        this.data.proposals.findIndex(p => p.id === proposal.id) === -1 &&
-                        !this.data.forget_proposal_ids.includes(proposal.id)
-                    ) {
+                    if (proposal && this.data.proposals.findIndex(p => p.id === proposal.id) === -1) {
                         // Add proposals based on the ID returned by the API.
                         this.data.proposals.push({ ...proposal, ...passthrough });
                         this.checkProposalReady();
@@ -112,37 +106,12 @@ export default Engine =>
             api_base.pushSubscription(subscription);
         }
 
-        unsubscribeProposals() {
-            const { proposals } = this.data;
-            const removeForgetProposalById = forget_proposal_id =>
-                (this.data.forget_proposal_ids = this.data.forget_proposal_ids.filter(id => id !== forget_proposal_id));
-
-            this.clearProposals();
-
-            return Promise.all(
-                proposals.map(proposal => {
-                    if (!this.data.forget_proposal_ids.includes(proposal.id)) {
-                        this.data.forget_proposal_ids.push(proposal.id);
-                    }
-
-                    if (proposal.error) {
-                        removeForgetProposalById(proposal.id);
-                        return Promise.resolve();
-                    }
-
-                    return doUntilDone(() => api_base.api.forget(proposal.id)).then(() => {
-                        removeForgetProposalById(proposal.id);
-                    });
-                })
-            );
-        }
-
         checkProposalReady() {
             // Proposals are considered ready when the proposals in our memory match the ones
             // we've requested from the API, we determine this by checking the passthrough of the response.
             const { proposals } = this.data;
 
-            if (proposals.length > 0) {
+            if (proposals.length > 0 && this.proposal_templates) {
                 const has_equal_proposals = this.proposal_templates.every(template => {
                     return (
                         proposals.findIndex(proposal => {

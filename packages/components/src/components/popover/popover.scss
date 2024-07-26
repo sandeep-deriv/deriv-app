@@ -6,6 +6,7 @@
     }
     &__container {
         position: absolute;
+        /*rtl:ignore*/
         left: 0;
         top: 0;
         width: 280px;
@@ -59,10 +60,28 @@
         }
         &__text {
             flex-grow: 2;
+            direction: ltr;
         }
         &--error {
+            direction: ltr;
             background-color: var(--status-danger);
         }
+    }
+    &__trade-params {
+        @include mobile {
+            max-width: calc(100vw - 6.7rem);
+        }
+    }
+}
+
+.mobile-widget__item-popover,
+.accu-info-display__popover {
+    max-width: 28rem;
+}
+.accu-info-display__popover {
+    @include mobile {
+        max-width: 33rem;
+        margin-right: 1rem;
     }
 }
 

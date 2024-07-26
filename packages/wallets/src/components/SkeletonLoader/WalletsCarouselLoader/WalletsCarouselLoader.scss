@@ -1,0 +1,72 @@
+@import '../SkeletonLoader.scss';
+
+.wallets-carousel-loader {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    width: 100%;
+    padding-block: 0.8rem;
+
+    &__title {
+        margin: 0.8rem 1.4rem 0;
+    }
+
+    &__actions {
+        display: flex;
+        padding-left: 2.4rem;
+        padding-right: 2.4rem;
+        gap: 3.2rem;
+        justify-content: center;
+        padding-inline: 2.4rem;
+
+        &-button {
+            width: 4.2rem;
+            height: 4.2rem;
+            border-radius: 1.2rem;
+        }
+    }
+
+    &__card {
+        height: 14.6rem;
+        border-radius: 0.8rem;
+
+        &:first-child {
+            height: 17.6rem;
+        }
+
+        &-body {
+            width: 24rem;
+
+            &:first-child {
+                width: 28.8rem;
+            }
+        }
+
+        &-container {
+            display: flex;
+            align-items: center;
+            gap: 1.6rem;
+            overflow: hidden;
+            transform: translateX(calc(50% - 14.4rem));
+            height: 18rem;
+        }
+    }
+
+    &__progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+
+        &__item {
+            width: 0.8rem;
+            height: 0.8rem;
+            border-radius: 50%;
+
+            &--active {
+                width: 2.5rem;
+                border-radius: 20%;
+            }
+        }
+    }
+}

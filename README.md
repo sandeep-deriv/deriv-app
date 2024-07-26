@@ -2,10 +2,11 @@
 
 This repository contains the various platforms of the Deriv application.
 
-![CircleCI](https://img.shields.io/circleci/build/github/binary-com/deriv-app) ![Prerequisite](https://img.shields.io/badge/node-%3E%3D16.16.0-blue.svg) ![Prerequisite](https://img.shields.io/badge/npm-%3E%3D7.21.0-blue.svg) [![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+![CircleCI](https://img.shields.io/circleci/build/github/binary-com/deriv-app) ![Prerequisite](https://img.shields.io/badge/node-18.x-blue.svg) ![Prerequisite](https://img.shields.io/badge/npm-9.x-blue.svg)
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
 ![Sonar Tech Debt](https://img.shields.io/sonar/tech_debt/binary-com_deriv-app?server=https%3A%2F%2Fsonarcloud.io)
 ![Sonar Violations (short format)](https://img.shields.io/sonar/violations/binary-com_deriv-app?server=https%3A%2F%2Fsonarcloud.io)
-[![codecov](https://codecov.io/gh/binary-com/deriv-app/branch/dev/graph/badge.svg?token=LClg2rlZ4z)](https://codecov.io/gh/binary-com/deriv-app)
+[![Coverage Status](https://coveralls.io/repos/github/binary-com/deriv-app/badge.svg?branch=master)](https://coveralls.io/github/binary-com/deriv-app?branch=master)
 
 **In this document**:
 
@@ -42,8 +43,6 @@ Before running or contribute to this project, you need to have the setup of the 
 -   npm >=7.21.0
 -   git (for `contribution`)
 
-**Note**: `node -v` and `sudo node -v` should be the same version.
-
 ## Quick start
 
 1.  **Fork the project**
@@ -55,6 +54,11 @@ Before running or contribute to this project, you need to have the setup of the 
     ```sh
     git clone git@github.com:binary-com/deriv-app.git
     ```
+
+> **Internal**: NX and Lerna integration
+>
+> -   Find and copy nx-cloud accessToken
+> -   Make a copy of `nx-cloud.env.example` from root directory of the project and name it `nx-cloud.env` and replace the `<token>` with provided token.
 
 3.  **Enter project directory**
 
@@ -68,37 +72,10 @@ Before running or contribute to this project, you need to have the setup of the 
     npm run bootstrap
     ```
 
-**Note**: If you get the error `peer dependencies`, follow the instruction below:
-
-1. Discard any changes related `package-lock.json` (if applicable)
-2. Make sure that the Node version is the same as recommended version otherwise upgrade or downgrade it
-3. Run the following commands:
+5.  **Build packages:**
 
     ```sh
-    $ npm ci
-    $ lerna link
-    $ lerna bootstrap --ci --hoist --strict
-    $ lerna link
-    $ npm run build
-    $ npm run bootstrap
-    ```
-
-    > **Note:** Internal behavior of bootstrap has changed to hoist "common" packages to root `node_modules` instead of individual packages.
-    > This behavior benefits us from having issues with multiple instances of the same library across dependencies, but it throws errors if the package versions are out of date. This was a trade-off we decided to So when you are adding a dependency which already exists in other packages, their version should be matched.
-    > In case of wanting a new version for a dependency, please update all packages.
-
-    [comment]: <> (3. If you wish to install and work with only a single, or multiple but specific packages, then follow `3i` for each package. However, if you wish to install and work with all packages, follow `3ii`.)
-    [comment]: <> (i. Run `npm run bootstrap {package name}`. Replace `{package name}` with the name of the package you want to work with. eg.: `trader`, `bot`)
-    [comment]: <> (ii. Install all packages with a hoisting strategy \(lift all common packages to a root `node_modules` and not package specific\), run `npm run hoist`)
-
-4. **Set custom domain:**
-
-    If you have a custom domain that you use for GH Pages, add a file named `CNAME` in `packages/core/scripts/` to be used for your GH Pages deployments
-
-5. **Build the project:**
-
-    ```sh
-    npm run build
+    npm run build:all
     ```
 
 <br />
@@ -128,15 +105,16 @@ Before running or contribute to this project, you need to have the setup of the 
 
 All packages must contain the following scripts to perform the stated actions:
 
-| Package param | Command            | Description                                                                                                                                                            |
-| :-----------: | ------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|      ✅       | `start`            | Runs complete test and build suite and starts the dev server.                                                                                                          |
-|      ✅       | `serve`            | Runs build suite and starts the dev server. When serving `core`, takes optional `open` value as argument to open specific page. (e.g: `npm run serve core --open=bot`) |
-|      ✅       | `build`            | Runs build suite and outputs the result into `dist`. Takes optional `base` value as argument.                                                                          |
-|      ✅       | `test`             | Runs the test suite with eslint, stylelint and jest.                                                                                                                   |
-|      ✅       | `test:jest`        | Runs only the jest test suite.                                                                                                                                         |
-|      ✅       | `test:qa`          | Runs the e2e test suite.                                                                                                                                               |
-|      ✅       | `test:performance` | Runs the performance test suite.                                                                                                                                       |
+| Package param | Command                    | Description                                                                                                                                                            |
+| :-----------: | -------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|      ✅       | `start`                    | Runs complete test and build suite and starts the dev server.                                                                                                          |
+|      ✅       | `serve`                    | Runs build suite and starts the dev server. When serving `core`, takes optional `open` value as argument to open specific page. (e.g: `npm run serve core --open=bot`) |
+|      ✅       | `build:one <package_name>` | Runs build suite and outputs the result into `dist` for the passed package name.                                                                                       |
+|      ✅       | `build:all`                | Runs build suites for all of the packages and outputs the result into `dist`.                                                                                          |
+|      ✅       | `test`                     | Runs the test suite with eslint, stylelint and jest.                                                                                                                   |
+|      ✅       | `test:jest`                | Runs only the jest test suite.                                                                                                                                         |
+|      ✅       | `test:qa`                  | Runs the e2e test suite.                                                                                                                                               |
+|      ✅       | `test:performance`         | Runs the performance test suite.                                                                                                                                       |
 
 [comment]: <> (The following scripts are not to be used except for CI/CD environments)
 [comment]: <> (| ❌ | `deploy` | Runs `build` script, then pushes the output to GH Pages. |)
@@ -154,15 +132,6 @@ Each package is named with the `@deriv/` prefix, however for the scripts above, 
 You can find the names of packages by first navigating to the `packages` folder. Each sub-folder is a package and contains a `package.json` file. The value of the `name` key in `package.json` is the package name.
 
 ### Usage
-
-### Configuring Hosts file
-
-In order to run our solution for the first time, you need to configure your `hosts` file:
-
-1. Open terminal.
-2. Open `hosts` file in your preferred text editor, f.e `sudo vim /etc/hosts`.
-3. Add a new entry pointing to `127.0.0.1 localhost.binary.sx`.
-4. Save the file and proceed to the next step.
 
 ### Starting a Development Server
 
@@ -191,14 +160,34 @@ You can read more on the various lerna commands (and the [`clean` command](https
 
 <br />
 
+## Servable packages
+
+-   account
+-   appstore
+-   bot-web-ui
+-   cashier
+-   cfd
+-   components
+-   core
+-   p2p
+-   trader
+
+<br />
+
 ### Examples of Script Usage
+
+✅ `core` is required to run any of the other packages such as if you want to run the bot-web-ui the core must be instantiated before.
+
+```bash
+npm run serve core
+```
 
 If a script supports the "Package param", you can supply a `{package name}` for it to run the script in. At the moment, only 1 package name can be given to a script, if you wish to run in multiple, please use the `lerna` command that's used under the hood as per its docs.
 
-✅ In order to run the `start` script for the `bot` package, simply run:
+✅ In order to run the `bot` package, simply run:
 
 ```bash
-npm run start bot
+npm run serve bot-web-ui
 ```
 
 ✅ Likewise for `trader` (or any other package) with a different script:
@@ -230,14 +219,12 @@ There is a 4th type of release: releasing npm registry packages (currently `@der
 
 <br />
 
-## PR Guidelines
+## PR format recommendations
 
-1. Use the `developer 1|developer 2/task_name` format for PR titles. (e.g.: `dev1|dev2/fixed_emoji_issue`, `dev1/added_superfast_jellyfish`)
-    - Optional square bracket tag (e.g. `[WIP]`) can be at the end.
-2. Use the appropriate package labels available on the repo to indicate which packages your PR modifies.
+1. Use the `[{Project Code}] {Developer}/{Clickup Card ID}/{Description}` format for PR titles. (e.g.: `[COJ] evgeniy/COJ-247/Align next-button on mt5 modal`), where [COJ] is a clickup project code.
+2. Add screenshots of change for easier reviewing (whenever applicable) and brief description
 3. Use Draft PRs if you don't mean to request for reviews yet. [Read more here.](https://github.blog/2019-02-14-introducing-draft-pull-requests/)
-
-<br />
+   <br />
 
 ## Test link deployment
 
@@ -267,20 +254,14 @@ If preferable to use manual deployment, you can use [gh-pages](https://pages.git
 
     **A.** Just as installing, except the `npm` command you'd run would be `npm uninstall` (shortened to `npm un`). e.g.: `lerna exec --scope=@deriv/translations -- npm un i18next`.
 
-3. How do I run `npm ci` or equivalent (to add dependencies based on `package-lock.json`?
+3. How do I run `npm ci` or equivalent to add dependencies based on `package-lock.json`?
 
     **A.** You have two options:
 
     1. use `lerna exec` with the `--scope` argument as the package you want to run the command on, as such `lerna exec --scope=trader -- npm ci`.
     2. `cd` into `packages/PACKAGE-NAME` and run `npm ci`, as such `cd packages/trader && npm ci`
 
-4. Why do I need to run commands with `sudo`?
-
-    **A.** You shouldn't need to. The only command that needs privilege is `serve` and `start` and that's because it's on port 443 **however, that script prompts you by itself, you do not need to place `sudo`**.
-
-    If you face this issue, simply run `sudo chown -R $(whoami) .` from the root of the project.
-
-5. My build(s) fail and I can see it related to Node Sass (`node-sass`), what do I do?
+4. My build(s) fail and I can see it related to Node Sass (`node-sass`), what do I do?
 
     **A.** This issue happens when your `node-sass` has its `binding.node` set to a version of node different from the current projects' one. Please try the following in order:
 
@@ -288,7 +269,7 @@ If preferable to use manual deployment, you can use [gh-pages](https://pages.git
     2. If that doesn't work, try `npm cache clean --force`, followed by `npm run clean`, and then `npm run bootstrap`.
     3. And finally, if that doesn't work then you can read deeper into this [StackOverflow post](https://stackoverflow.com/questions/37986800).
 
-6. How can I regenerate `package-lock.json` file?
+5. How can I regenerate `package-lock.json` file?
 
     We have added `bootstrap:dev` to scripts. If you are updating or adding a package and you want to regenerate `package-lock.json` file, you should run this command
     `npm run bootstrap:dev`

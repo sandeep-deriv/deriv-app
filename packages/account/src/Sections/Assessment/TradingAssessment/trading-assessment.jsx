@@ -3,22 +3,14 @@ import { localize, Localize } from '@deriv/translations';
 import FormBody from 'Components/form-body';
 import FormSubHeader from 'Components/form-sub-header';
 import { RiskToleranceWarningModal, TestWarningModal } from 'Components/trading-assessment';
-import { trading_assessment_questions } from 'Configs/trading-assessment-config.js';
-import {
-    DesktopWrapper,
-    Dropdown,
-    MobileWrapper,
-    SelectNative,
-    Text,
-    FormSubmitButton,
-    Button,
-    Loading,
-} from '@deriv/components';
+import { getTradingAssessmentQuestions } from 'Constants/trading-assessment-questions';
+import { Dropdown, SelectNative, Text, FormSubmitButton, Button, Loading } from '@deriv/components';
 import FormFooter from 'Components/form-footer';
-import { isMobile, routes, WS } from '@deriv/shared';
-import { connect } from 'Stores/connect';
+import { routes, WS } from '@deriv/shared';
+import { observer, useStore } from '@deriv/stores';
 import { useHistory, withRouter } from 'react-router';
 import { Formik, Form } from 'formik';
+import { useDevice } from '@deriv-com/ui';
 
 const populateData = form_data => {
     return {
@@ -34,13 +26,10 @@ const populateData = form_data => {
         required_initial_margin: form_data.required_initial_margin,
     };
 };
-
-const TradingAssessment = ({
-    is_virtual,
-    setFinancialAndTradingAssessment,
-    // setShouldShowWarningModal,
-    // should_show_risk_accept_modal,
-}) => {
+const TradingAssessment = observer(() => {
+    const { isDesktop } = useDevice();
+    const { client } = useStore();
+    const { is_virtual, setFinancialAndTradingAssessment } = client;
     const history = useHistory();
     const [is_loading, setIsLoading] = React.useState(true);
     const [is_btn_loading, setIsBtnLoading] = React.useState(false);
@@ -112,11 +101,10 @@ const TradingAssessment = ({
     if (should_accept_risk) {
         return (
             <RiskToleranceWarningModal
-                has_icon={true}
                 show_risk_modal
                 title={localize('Risk Tolerance Warning')}
                 button_text={localize('Yes, I understand the risk.')}
-                onClick={handleAcceptRisk}
+                handleAcceptRisk={handleAcceptRisk}
                 body_content={
                     <Localize
                         i18n_default_text='CFDs and other financial instruments come with a high risk of losing money rapidly due to leverage. You should consider whether you understand how CFDs and other financial instruments work and whether you can afford to take the high risk of losing your money. <0/><0/> To continue, you must confirm that you understand your capital is at risk.'
@@ -168,102 +156,108 @@ const TradingAssessment = ({
             {({ values, dirty, isSubmitting, handleChange, handleBlur }) => {
                 return (
                     <Form className='account-form account-form__trading-assessment'>
-                        <FormBody scroll_offset={isMobile() ? '150px' : '80px'}>
+                        <FormBody scroll_offset={isDesktop ? '80px' : '150px'}>
                             <FormSubHeader
                                 title={localize('Trading Experience')}
                                 subtitle={localize('All fields are required')}
                             />
-                            {trading_assessment_questions.map(item => {
+                            {getTradingAssessmentQuestions().map(item => {
                                 const form_control = item.form_control;
                                 if (item.field_type === 'radio') {
                                     return (
                                         <fieldset className='account-form__question' key={form_control}>
-                                            <DesktopWrapper>
-                                                <Text
-                                                    as='h1'
-                                                    color='prominent'
-                                                    weight='bold'
-                                                    size='xs'
-                                                    className='account-form__question--text'
-                                                >
-                                                    {item.question_text}
-                                                </Text>
-                                                <Dropdown
-                                                    is_align_text_left
-                                                    name={form_control}
-                                                    value={values[form_control]}
-                                                    list={item?.answer_options}
-                                                    onChange={handleChange}
-                                                    handleBlur={handleBlur}
-                                                />
-                                            </DesktopWrapper>
-                                            <MobileWrapper>
-                                                <Text
-                                                    as='h1'
-                                                    color='prominent'
-                                                    weight='bold'
-                                                    size='xs'
-                                                    line_height='xl'
-                                                    className='account-form__question--text'
-                                                >
-                                                    {item?.question_text}
-                                                </Text>
-                                                <SelectNative
-                                                    value={values[form_control]}
-                                                    name={form_control}
-                                                    list_items={item?.answer_options}
-                                                    onChange={e => handleChange(e)}
-                                                    should_show_empty_option={false}
-                                                />
-                                            </MobileWrapper>
+                                            {isDesktop ? (
+                                                <React.Fragment>
+                                                    <Text
+                                                        as='h1'
+                                                        color='prominent'
+                                                        weight='bold'
+                                                        size='xs'
+                                                        className='account-form__question--text'
+                                                    >
+                                                        {item.question_text}
+                                                    </Text>
+                                                    <Dropdown
+                                                        is_align_text_left
+                                                        name={form_control}
+                                                        value={values[form_control]}
+                                                        list={item?.answer_options}
+                                                        onChange={handleChange}
+                                                        handleBlur={handleBlur}
+                                                    />
+                                                </React.Fragment>
+                                            ) : (
+                                                <React.Fragment>
+                                                    <Text
+                                                        as='h1'
+                                                        color='prominent'
+                                                        weight='bold'
+                                                        size='xs'
+                                                        line_height='xl'
+                                                        className='account-form__question--text'
+                                                    >
+                                                        {item?.question_text}
+                                                    </Text>
+                                                    <SelectNative
+                                                        value={values[form_control]}
+                                                        name={form_control}
+                                                        list_items={item?.answer_options}
+                                                        onChange={e => handleChange(e)}
+                                                        should_show_empty_option={false}
+                                                    />
+                                                </React.Fragment>
+                                            )}
                                         </fieldset>
                                     );
                                     // eslint-disable-next-line no-else-return
                                 } else {
                                     return (
-                                        <div key={form_control}>
+                                        <div key={`${form_control}_dropdown`}>
                                             {item.questions.map(items => {
                                                 const sub_form_control = items.form_control;
                                                 return (
                                                     <fieldset key={sub_form_control} className='account-form__question'>
-                                                        <DesktopWrapper>
-                                                            <Text
-                                                                as='h1'
-                                                                color='prominent'
-                                                                weight='bold'
-                                                                size='xs'
-                                                                className='account-form__question--text'
-                                                            >
-                                                                {items.question_text}
-                                                            </Text>
-                                                            <Dropdown
-                                                                is_align_text_left
-                                                                name={sub_form_control}
-                                                                value={values[sub_form_control]}
-                                                                list={items?.answer_options}
-                                                                onChange={handleChange}
-                                                                handleBlur={handleBlur}
-                                                            />
-                                                        </DesktopWrapper>
-                                                        <MobileWrapper>
-                                                            <Text
-                                                                as='h1'
-                                                                color='prominent'
-                                                                weight='bold'
-                                                                size='xs'
-                                                                line_height='xl'
-                                                                className='account-form__question--text'
-                                                            >
-                                                                {items?.question_text}
-                                                            </Text>
-                                                            <SelectNative
-                                                                value={values[sub_form_control]}
-                                                                name={sub_form_control}
-                                                                list_items={items?.answer_options}
-                                                                onChange={e => handleChange(e)}
-                                                                should_show_empty_option={false}
-                                                            />
-                                                        </MobileWrapper>
+                                                        {isDesktop ? (
+                                                            <React.Fragment>
+                                                                <Text
+                                                                    as='h1'
+                                                                    color='prominent'
+                                                                    weight='bold'
+                                                                    size='xs'
+                                                                    className='account-form__question--text'
+                                                                >
+                                                                    {items.question_text}
+                                                                </Text>
+                                                                <Dropdown
+                                                                    is_align_text_left
+                                                                    name={sub_form_control}
+                                                                    value={values[sub_form_control]}
+                                                                    list={items?.answer_options}
+                                                                    onChange={handleChange}
+                                                                    handleBlur={handleBlur}
+                                                                />
+                                                            </React.Fragment>
+                                                        ) : (
+                                                            <React.Fragment>
+                                                                <Text
+                                                                    as='h1'
+                                                                    color='prominent'
+                                                                    weight='bold'
+                                                                    size='xs'
+                                                                    line_height='xl'
+                                                                    className='account-form__question--text'
+                                                                >
+                                                                    {items?.question_text}
+                                                                </Text>
+                                                                <SelectNative
+                                                                    value={values[sub_form_control]}
+                                                                    name={sub_form_control}
+                                                                    list_items={items?.answer_options}
+                                                                    onChange={e => handleChange(e)}
+                                                                    should_show_empty_option={false}
+                                                                />
+                                                            </React.Fragment>
+                                                        )}
                                                     </fieldset>
                                                 );
                                             })}
@@ -277,7 +271,7 @@ const TradingAssessment = ({
                                 is_disabled={isSubmitting || !dirty || is_btn_loading}
                                 is_loading={is_btn_loading}
                                 has_effect
-                                is_absolute={isMobile()}
+                                is_absolute={!isDesktop}
                                 is_submit_success={is_submit_success && !dirty}
                                 green={is_submit_success && !dirty}
                                 label={localize('Submit')}
@@ -288,13 +282,6 @@ const TradingAssessment = ({
             }}
         </Formik>
     );
-};
+});
 
-export default connect(({ client }) => ({
-    is_virtual: client.is_virtual,
-    setFinancialAndTradingAssessment: client.setFinancialAndTradingAssessment,
-    is_trading_experience_incomplete: client.is_trading_experience_incomplete,
-    updateAccountStatus: client.updateAccountStatus,
-    // setShouldShowWarningModal: ui.setShouldShowWarningModal,
-    // should_show_risk_accept_modal: ui.should_show_risk_accept_modal,
-}))(withRouter(TradingAssessment));
+export default withRouter(TradingAssessment);

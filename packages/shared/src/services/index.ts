@@ -1,2 +1,2 @@
 export * from './ws-methods';
-export { trackJSNetworkMonitor } from './trackjs';
+export * from './performance-metrics-methods';

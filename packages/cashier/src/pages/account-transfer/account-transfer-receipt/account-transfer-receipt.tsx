@@ -1,11 +1,15 @@
 import React from 'react';
+import { RouteComponentProps, withRouter } from 'react-router';
 import classNames from 'classnames';
+
+import { Button, Icon, Modal, Text } from '@deriv/components';
+import { getCurrencyDisplayCode, isMobile, routes } from '@deriv/shared';
+import { observer, useStore } from '@deriv/stores';
+import { Localize, localize } from '@deriv/translations';
+
 import AccountPlatformIcon from '../../../components/account-platform-icon';
-import { withRouter, RouteComponentProps } from 'react-router';
-import { Button, Modal, Icon, Text } from '@deriv/components';
-import { formatMoney, getCurrencyDisplayCode, isMobile, routes } from '@deriv/shared';
-import { localize, Localize } from '@deriv/translations';
-import { useStore, observer } from '@deriv/stores';
+import { useCashierStore } from '../../../stores/useCashierStores';
+
 import './account-transfer-receipt.scss';
 
 type TSwitch = {
@@ -13,27 +17,19 @@ type TSwitch = {
     currency?: string;
 };
 
-type TAccountTransferReceipt = {
+type TAccountTransferReceipt = RouteComponentProps & {
     onClose: () => void;
-    history: RouteComponentProps;
 };
 
 const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferReceipt) => {
-    const {
-        ui,
-        common,
-        client,
-        modules: {
-            cashier: { account_transfer },
-        },
-    } = useStore();
-
-    const { disableApp, enableApp } = ui;
+    const { common, client, traders_hub } = useStore();
+    const { account_transfer } = useCashierStore();
     const { is_from_derivgo } = common;
-    const { is_pre_appstore, loginid, switchAccount } = client;
-    const { receipt, resetAccountTransfer, selected_from, selected_to, setShouldSwitchAccout } = account_transfer;
+    const { loginid, switchAccount } = client;
+    const { closeAccountTransferModal } = traders_hub;
+    const { receipt, resetAccountTransfer, selected_from, selected_to, setShouldSwitchAccount } = account_transfer;
 
-    const is_from_pre_appstore = is_pre_appstore && !location.pathname.startsWith(routes.cashier);
+    const is_from_outside_cashier = !location.pathname.startsWith(routes.cashier);
 
     const [is_switch_visible, setIsSwitchVisible] = React.useState(false);
     const [switch_to, setSwitchTo] = React.useState<TSwitch>({});
@@ -41,6 +37,7 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
     React.useEffect(() => {
         return () => {
             resetAccountTransfer();
+            closeAccountTransferModal();
         };
     }, [resetAccountTransfer]);
 
@@ -64,24 +61,23 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
         // the account transferred to is a Deriv MT5 account that can't be switched to and from account is your logged in account
         if (
             selected_to.value === loginid ||
-            ((selected_to.is_mt || selected_to.is_dxtrade) && selected_from.value === loginid)
+            ((selected_to.is_mt || selected_to.is_dxtrade || selected_to.is_ctrader) && selected_from.value === loginid)
         ) {
             openStatement();
         } else {
             // if the account transferred to is a Deriv MT5 account that can't be switched to, switch to from account instead
             // otherwise switch to the account transferred to
-            setShouldSwitchAccout();
+            setShouldSwitchAccount(true);
             setSwitchTo(selected_to.is_mt ? selected_from : selected_to);
             toggleSwitchAlert();
         }
-        onClose();
     };
 
     return (
         <div
             className={classNames(
                 'account-transfer-receipt__crypto',
-                !is_from_pre_appstore && 'account-transfer-receipt__crypto-padding'
+                !is_from_outside_cashier && 'account-transfer-receipt__crypto-padding'
             )}
         >
             <Text as='h2' color='prominent' align='center' weight='bold' className='cashier__header'>
@@ -92,7 +88,7 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
                     <Localize
                         i18n_default_text='{{amount}} {{currency}}'
                         values={{
-                            amount: formatMoney(selected_from.currency, receipt.amount_transferred, true),
+                            amount: receipt.amount_transferred,
                             currency: getCurrencyDisplayCode(selected_from.currency),
                         }}
                     />
@@ -101,12 +97,12 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
             <div className='account-transfer-receipt__crypto--details-wrapper'>
                 <div className='crypto-transfer-from'>
                     <div className='crypto-transfer-from-details'>
-                        <AccountPlatformIcon account={selected_from} is_pre_appstore={is_pre_appstore} size={32} />
+                        <AccountPlatformIcon account={selected_from} size={32} />
                         <Text as='p' size='s' weight='bold'>
                             <Localize i18n_default_text={selected_from.text} />
                         </Text>
                     </div>
-                    {!(is_from_derivgo && selected_from.is_derivez) && (
+                    {!is_from_derivgo && (
                         <Text as='p' size='s' color='less-prominent' align='center'>
                             {selected_from.value}
                         </Text>
@@ -115,12 +111,12 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
                 <Icon className='crypto-transferred-icon' icon='IcArrowDownBold' />
                 <div className='crypto-transfer-to'>
                     <div className='crypto-transfer-to-details'>
-                        <AccountPlatformIcon account={selected_to} is_pre_appstore={is_pre_appstore} size={32} />
+                        <AccountPlatformIcon account={selected_to} size={32} />
                         <Text as='p' size='s' weight='bold'>
                             <Localize i18n_default_text={selected_to.text} />
                         </Text>
                     </div>
-                    {!(is_from_derivgo && selected_to.is_derivez) && (
+                    {!is_from_derivgo && (
                         <Text as='p' size='s' color='less-prominent' align='center'>
                             {selected_to.value}
                         </Text>
@@ -141,8 +137,8 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
                 <Button
                     className='account-transfer-receipt__button'
                     has_effect
-                    text={is_from_pre_appstore ? localize('Close') : localize('Make a new transfer')}
-                    onClick={is_from_pre_appstore ? onClose : resetAccountTransfer}
+                    text={is_from_outside_cashier ? localize('Close') : localize('Make a new transfer')}
+                    onClick={is_from_outside_cashier ? onClose : resetAccountTransfer}
                     primary
                     large
                 />
@@ -150,8 +146,6 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
             <Modal
                 is_open={is_switch_visible}
                 toggleModal={toggleSwitchAlert}
-                enableApp={enableApp}
-                disableApp={disableApp}
                 has_close_icon={isMobile()}
                 className='account_transfer_switch_modal'
                 small
@@ -164,7 +158,16 @@ const AccountTransferReceipt = observer(({ onClose, history }: TAccountTransferR
                     />
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button has_effect text={localize('Cancel')} onClick={toggleSwitchAlert} secondary large />
+                    <Button
+                        has_effect
+                        text={localize('Cancel')}
+                        onClick={() => {
+                            setShouldSwitchAccount(false);
+                            toggleSwitchAlert();
+                        }}
+                        secondary
+                        large
+                    />
                     <Button
                         has_effect
                         text={localize(`Switch to ${switch_to.currency} account`)}

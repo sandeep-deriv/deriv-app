@@ -1,6 +1,6 @@
 import { configure } from 'mobx';
+import { excludeParamsFromUrlQuery, startPerformanceEventTimer } from '@deriv/shared';
 import NetworkMonitor from 'Services/network-monitor';
-// import OutdatedBrowser      from 'Services/outdated-browser';
 import RootStore from 'Stores';
 
 configure({ enforceActions: 'observed' });
@@ -26,15 +26,32 @@ const setStorageEvents = root_store => {
                     window.location.reload();
                 }
                 break;
-            case 'reality_check_dismissed':
-                if (document.hidden) {
-                    // if new value is true, hide reality check, otherwise show it
-                    root_store.client.setVisibilityRealityCheck(!JSON.parse(evt.newValue));
-                }
-                break;
             // no default
         }
     });
+};
+
+const startPerformanceMetrics = (url_query_string, url_params) => {
+    // start the timer for signup
+    if (url_params.get('action') === 'signup') startPerformanceEventTimer('signup_time');
+
+    // start the timer for login
+    if (url_params.get('acct1')) startPerformanceEventTimer('login_time');
+
+    // start the timer for redirect from deriv.com
+    if (url_params.get('redirect_from') === 'deriv_com') {
+        startPerformanceEventTimer('redirect_from_deriv_com_time');
+
+        // remove 'redirect_from' query param
+        history.replaceState(
+            null,
+            null,
+            window.location.href.replace(
+                `${url_query_string}`,
+                excludeParamsFromUrlQuery(url_query_string, ['redirect_from'])
+            )
+        );
+    }
 };
 
 const initStore = notification_messages => {
@@ -42,6 +59,9 @@ const initStore = notification_messages => {
     // race condition with setting up user session from URL
     const url_query_string = window.location.search;
     const url_params = new URLSearchParams(url_query_string);
+    // start timers to measure performance
+    startPerformanceMetrics(url_query_string, url_params);
+
     if (url_params.get('action') === 'signup') {
         // If a user comes from the signup process,
         // we need to give him a clean setup
@@ -59,11 +79,8 @@ const initStore = notification_messages => {
     setStorageEvents(root_store);
 
     NetworkMonitor.init(root_store);
-    // TODO: Re-enable and update browser checking
-    // OutdatedBrowser.init(root_store);!
     root_store.client.init();
     root_store.common.init();
-    root_store.pushwoosh.init();
     root_store.ui.init(notification_messages);
 
     return root_store;

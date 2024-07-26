@@ -1,55 +1,75 @@
-import PropTypes from 'prop-types';
 import React from 'react';
+import WS from 'Services/ws-methods';
+import PropTypes from 'prop-types';
 import { BrowserRouter as Router } from 'react-router-dom';
-// Initialize i18n by importing it here
-// eslint-disable-next-line no-unused-vars
-import { withTranslation } from 'react-i18next';
-import { DesktopWrapper } from '@deriv/components';
-import { setUrlLanguage, initFormErrorMessages, setSharedCFDText, useOnLoadTranslation } from '@deriv/shared';
-import { initializeTranslations, getLanguage } from '@deriv/translations';
+import { Analytics } from '@deriv-com/analytics';
+import { BreakpointProvider } from '@deriv/quill-design';
+import { APIProvider } from '@deriv/api';
 import { CashierStore } from '@deriv/cashier';
 import { CFDStore } from '@deriv/cfd';
-import { StoreProvider } from '@deriv/stores';
-import WS from 'Services/ws-methods';
-import { MobxContentProvider } from 'Stores/connect';
-import SmartTraderIFrame from 'Modules/SmartTraderIFrame';
-import BinaryBotIFrame from 'Modules/BinaryBotIFrame';
-import AppToastMessages from './Containers/app-toast-messages.jsx';
-import ErrorBoundary from './Components/Elements/Errors/error-boundary.jsx';
-import AppContents from './Containers/Layout/app-contents.jsx';
-import PlatformContainer from './Containers/PlatformContainer/PlatformContainer.jsx';
-import Footer from './Containers/Layout/footer.jsx';
-import Header from './Containers/Layout/header';
-import AppModals from './Containers/Modals';
-import Routes from './Containers/Routes/routes.jsx';
-import { FORM_ERROR_MESSAGES } from '../Constants/form-error-messages';
+import { Loading } from '@deriv/components';
+import {
+    POIProvider,
+    getPositionsV2TabIndexFromURL,
+    initFormErrorMessages,
+    isDTraderV2,
+    routes,
+    setSharedCFDText,
+    setUrlLanguage,
+    setWebsocket,
+    useOnLoadTranslation,
+} from '@deriv/shared';
+import { StoreProvider, P2PSettingsProvider } from '@deriv/stores';
+import { getLanguage, initializeTranslations } from '@deriv/translations';
+import { withTranslation, useTranslation } from 'react-i18next';
+import { initializeI18n, TranslationProvider, getInitialLanguage } from '@deriv-com/translations';
 import { CFD_TEXT } from '../Constants/cfd-text';
-
-// TODO: Lazy load smartchart styles
-import '@deriv/deriv-charts/dist/smartcharts.css';
-// eslint-disable-next-line import/extensions
-// eslint-disable-next-line import/no-unresolved
+import { FORM_ERROR_MESSAGES } from '../Constants/form-error-messages';
+import AppContent from './AppContent';
+import initHotjar from '../Utils/Hotjar';
 import 'Sass/app.scss';
 
 const AppWithoutTranslation = ({ root_store }) => {
+    const i18nInstance = initializeI18n({
+        cdnUrl: `${process.env.CROWDIN_URL}/${process.env.ACC_TRANSLATION_PATH}`, // https://translations.deriv.com/deriv-app-accounts/staging/translations
+    });
     const l = window.location;
     const base = l.pathname.split('/')[1];
     const has_base = /^\/(br_)/.test(l.pathname);
     const [is_translation_loaded] = useOnLoadTranslation();
     const initCashierStore = () => {
-        root_store.modules.attachModule('cashier', new CashierStore({ root_store, WS }));
+        root_store.modules.attachModule('cashier', new CashierStore(root_store, WS));
         root_store.modules.cashier.general_store.init();
     };
-    // TODO: investigate the order of cashier store initialization
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    React.useEffect(initCashierStore, []);
+    const { i18n } = useTranslation();
     const initCFDStore = () => {
         root_store.modules.attachModule('cfd', new CFDStore({ root_store, WS }));
     };
-
-    React.useEffect(initCFDStore, []);
+    const { preferred_language } = root_store.client;
+    const language = preferred_language ?? getInitialLanguage();
 
     React.useEffect(() => {
+        const dir = i18n.dir(i18n.language.toLowerCase());
+        document.documentElement.dir = dir;
+    }, [i18n, i18n.language]);
+
+    React.useEffect(() => {
+        initCashierStore();
+        initCFDStore();
+        const loadSmartchartsStyles = () => {
+            import('@deriv/deriv-charts/dist/smartcharts.css');
+        };
+
+        const loadExternalScripts = async () => {
+            const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            await delay(3000);
+            window.LiveChatWidget.init();
+
+            await delay(2000);
+            initHotjar(root_store.client);
+        };
+
         initializeTranslations();
 
         // TODO: [translation-to-shared]: add translation implemnentation in shared
@@ -57,40 +77,69 @@ const AppWithoutTranslation = ({ root_store }) => {
         initFormErrorMessages(FORM_ERROR_MESSAGES);
         setSharedCFDText(CFD_TEXT);
         root_store.common.setPlatform();
+        loadSmartchartsStyles();
+
+        // Set maximum timeout before we load livechat in case if page loading is disturbed or takes too long
+        const max_timeout = setTimeout(loadExternalScripts, 15 * 1000); // 15 seconds
+
+        window.addEventListener('load', () => {
+            clearTimeout(max_timeout);
+            loadExternalScripts();
+        });
+
+        return () => {
+            window.removeEventListener('load', loadExternalScripts);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const platform_passthrough = {
         root_store,
         WS,
+        i18nInstance,
+        language,
     };
+
+    setWebsocket(WS);
+
+    React.useEffect(() => {
+        if (!root_store.client.email) {
+            Analytics.reset();
+        }
+    }, [root_store.client.email]);
+
+    const getLoader = () =>
+        isDTraderV2() ? (
+            <Loading.DTraderV2
+                initial_app_loading
+                is_contract_details={location.pathname.startsWith('/contract/')}
+                is_positions={location.pathname === routes.trader_positions}
+                is_closed_tab={getPositionsV2TabIndexFromURL() === 1}
+            />
+        ) : (
+            <Loading />
+        );
 
     return (
         <>
             {is_translation_loaded ? (
                 <Router basename={has_base ? `/${base}` : null}>
-                    <MobxContentProvider store={root_store}>
-                        <StoreProvider store={root_store}>
-                            <PlatformContainer>
-                                <Header />
-                                <ErrorBoundary>
-                                    <AppContents>
-                                        {/* TODO: [trader-remove-client-base] */}
-                                        <Routes passthrough={platform_passthrough} />
-                                    </AppContents>
-                                </ErrorBoundary>
-                                <DesktopWrapper>
-                                    <Footer />
-                                </DesktopWrapper>
-                                <ErrorBoundary>
-                                    <AppModals />
-                                </ErrorBoundary>
-                                <SmartTraderIFrame />
-                                <BinaryBotIFrame />
-                                <AppToastMessages />
-                            </PlatformContainer>
-                        </StoreProvider>
-                    </MobxContentProvider>
+                    <StoreProvider store={root_store}>
+                        <BreakpointProvider>
+                            <APIProvider>
+                                <POIProvider>
+                                    <P2PSettingsProvider>
+                                        <TranslationProvider defaultLang={language} i18nInstance={i18nInstance}>
+                                            {/* This is required as translation provider uses suspense to reload language */}
+                                            <React.Suspense fallback={getLoader()}>
+                                                <AppContent passthrough={platform_passthrough} />
+                                            </React.Suspense>
+                                        </TranslationProvider>
+                                    </P2PSettingsProvider>
+                                </POIProvider>
+                            </APIProvider>
+                        </BreakpointProvider>
+                    </StoreProvider>
                 </Router>
             ) : (
                 <></>

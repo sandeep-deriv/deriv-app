@@ -11,12 +11,12 @@
             "Services/*": ["src/Services/*"],
             "Stores/*": ["src/Stores/*"],
             "Templates/*": ["src/templates/*"],
-            "Utils/*": ["src/utils/*"],
+            "Utils/*": ["src/Utils/*"],
             "@deriv/*": ["../*/src"]
         },
         "outDir": "./dist",
         "baseUrl": "./",
         "experimentalDecorators": true
     },
-    "include": ["src", "global.d.ts", "../../utils.d.ts"]
+    "include": ["src"]
 }

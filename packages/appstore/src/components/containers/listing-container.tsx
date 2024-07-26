@@ -1,54 +1,50 @@
 import React, { HTMLAttributes, ReactNode } from 'react';
+import classNames from 'classnames';
 import CurrencySwitcherCard from 'Components/currency-switcher-card';
 import GridContainer from 'Components/containers/grid-container';
 import './listing-container.scss';
-import { useStores } from 'Stores/index';
-import { observer } from 'mobx-react-lite';
-import TitleCardLoader from 'Components/pre-loader/title-card-loader';
 
-type ListingContainerProps = {
+type TListingContainerProps = {
     title: ReactNode;
     description: ReactNode;
     is_deriv_platform?: boolean;
+    className?: string;
+    is_outside_grid_container?: boolean;
+};
+type TOptionsProps = Pick<TListingContainerProps, 'title' | 'description' | 'is_deriv_platform'>;
+type TSwitcherProps = Pick<TListingContainerProps, 'is_deriv_platform'>;
+
+const Options = ({ title, description }: TOptionsProps) => {
+    return (
+        <div className='listing-container__title'>
+            {title}
+            {description}
+        </div>
+    );
+};
+
+const Switcher = ({ is_deriv_platform }: TSwitcherProps) => {
+    if (!is_deriv_platform) return null;
+    return <CurrencySwitcherCard />;
 };
 
 const ListingContainer = ({
     title,
     description,
     is_deriv_platform = false,
+    is_outside_grid_container,
     children,
-}: ListingContainerProps & Omit<HTMLAttributes<HTMLDivElement>, 'title'>) => {
-    const { client } = useStores();
-    const { is_landing_company_loaded } = client;
-
-    const Options = () => {
-        if (is_landing_company_loaded) {
-            return (
-                <div className='listing-container__title'>
-                    {title}
-                    {description}
-                </div>
-            );
-        } else if (!is_deriv_platform) {
-            return (
-                <div className='listing-container__title'>
-                    {title}
-                    {description}
-                </div>
-            );
-        }
-        return <TitleCardLoader />;
-    };
-
+    className,
+}: TListingContainerProps & Omit<HTMLAttributes<HTMLDivElement>, 'title'>) => {
     return (
-        <div className='listing-container'>
+        <div className={classNames('listing-container', className)}>
             <div className='listing-container__top-container'>
-                <Options />
-                {is_deriv_platform && <CurrencySwitcherCard />}
+                <Options title={title} description={description} />
+                <Switcher is_deriv_platform={is_deriv_platform} />
             </div>
-            <GridContainer>{children}</GridContainer>
+            {is_outside_grid_container ? children : <GridContainer>{children}</GridContainer>}
         </div>
     );
 };
 
-export default observer(ListingContainer);
+export default ListingContainer;

@@ -50,6 +50,9 @@ export const params = (href?: string | URL) => {
     return arr_params;
 };
 
+/**
+ * @deprecated Please use 'URLUtils.normalizePath' from '@deriv-com/utils' instead of this.
+ */
 export const normalizePath = (path: string) => (path ? path.replace(/(^\/|\/$|[^a-zA-Z0-9-_./()#])/g, '') : '');
 
 export const urlFor = (
@@ -98,7 +101,7 @@ export const urlForCurrentDomain = (href: string) => {
     const url_object = new URL(href);
     if (Object.keys(host_map).includes(url_object.hostname)) {
         url_object.hostname = host_map[url_object.hostname as keyof typeof host_map];
-    } else if (url_object.hostname.indexOf(default_domain) !== -1) {
+    } else if (url_object.hostname.match(default_domain)) {
         // to keep all non-Binary links unchanged, we use default domain for all Binary links in the codebase (javascript and templates)
         url_object.hostname = url_object.hostname.replace(
             new RegExp(`\\.${default_domain}`, 'i'),
@@ -133,7 +136,10 @@ export const setUrlLanguage = (lang: string) => {
 
 // TODO: cleanup options param usage
 // eslint-disable-next-line no-unused-vars
-export const getStaticUrl = (path = '', _options = {}, is_document = false, is_eu_url = false) => {
+/**
+ * @deprecated Please use 'URLUtils.getDerivStaticURL' from '@deriv-com/utils' instead of this.
+ */
+export const getStaticUrl = (path = '', is_document = false, is_eu_url = false) => {
     const host = is_eu_url ? deriv_urls.DERIV_COM_PRODUCTION_EU : deriv_urls.DERIV_COM_PRODUCTION;
     let lang = default_language?.toLowerCase();
 
@@ -159,7 +165,7 @@ export const getPath = (route_path: string, parameters = {}) =>
         route_path
     );
 
-export const getContractPath = (contract_id: number) => getPath(routes.contract, { contract_id });
+export const getContractPath = (contract_id?: number) => getPath(routes.contract, { contract_id });
 
 /**
  * Filters query string. Returns filtered query (without '/?')
@@ -170,4 +176,10 @@ export const filterUrlQuery = (search_param: string, allowed_keys: string[]) => 
     const search_params = new URLSearchParams(search_param);
     const filtered_queries = [...search_params].filter(kvp => allowed_keys.includes(kvp[0]));
     return new URLSearchParams(filtered_queries || '').toString();
+};
+
+export const excludeParamsFromUrlQuery = (search_param: string, excluded_keys: string[]) => {
+    const search_params = new URLSearchParams(search_param);
+    const filtered_queries = [...search_params].filter(([key]) => !excluded_keys.includes(key));
+    return filtered_queries.length ? `?${new URLSearchParams(filtered_queries).toString()}` : '';
 };

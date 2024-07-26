@@ -25,15 +25,36 @@
             background-color: var(--state-active);
             color: var(--text-prominent);
         }
-        &:hover:not(&--selected) {
+        &--disabled {
+            color: var(--text-disabled);
+            cursor: not-allowed;
+        }
+        &:hover:not(&--disabled):not(&--selected) {
             cursor: pointer;
             background-color: var(--state-hover);
         }
         &:last-child {
             margin-right: 0;
         }
+        &--percentage {
+            border-radius: unset;
+            flex: 1;
+            height: 3.2rem;
+
+            &:not(:first-child) {
+                margin-left: 0;
+            }
+            &:first-child {
+                border-top-left-radius: $BORDER_RADIUS;
+                border-bottom-left-radius: $BORDER_RADIUS;
+            }
+            &:last-child {
+                border-top-right-radius: $BORDER_RADIUS;
+                border-bottom-right-radius: $BORDER_RADIUS;
+            }
+        }
     }
-    @include mobile {
+    @include mobile-screen {
         margin-top: 0;
         padding: 0.8rem;
         border-radius: $BORDER_RADIUS;

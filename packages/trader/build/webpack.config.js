@@ -6,7 +6,7 @@ module.exports = function (env) {
 
     return {
         context: path.resolve(__dirname, '../'),
-        devtool: IS_RELEASE ? undefined : 'eval-cheap-module-source-map',
+        devtool: IS_RELEASE ? 'source-map' : 'eval-cheap-module-source-map',
         entry: {
             trader: path.resolve(__dirname, '../src', 'index.tsx'),
         },
@@ -44,9 +44,9 @@ module.exports = function (env) {
                 '@deriv/shared': '@deriv/shared',
                 '@deriv/components': '@deriv/components',
                 '@deriv/translations': '@deriv/translations',
-                '@deriv/deriv-charts': '@deriv/deriv-charts',
                 '@deriv/account': '@deriv/account',
-                '@deriv/reports': '@deriv/reports',
+                '@deriv/deriv-charts': '@deriv/deriv-charts',
+                '@deriv-com/analytics': `@deriv-com/analytics`,
             },
             /^@deriv\/shared\/.+$/,
             /^@deriv\/components\/.+$/,

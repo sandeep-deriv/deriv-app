@@ -2,7 +2,7 @@
     "compilerOptions": {
         "module": "es2022", // Specify module code generation
         "target": "es5", // Specify ECMAScript target version
-        "jsx": "react", // Support JSX in .tsx files
+        "jsx": "react-jsx", // Support JSX in .tsx files
         "lib": ["dom", "dom.iterable", "esnext"], // List of library files to be included in the compilation
         "allowJs": true, // Allow JavaScript files to be compiled
         "declaration": true, // Generate corresponding .d.ts file
@@ -22,8 +22,15 @@
         "incremental": true, // Enable incremental compilation by reading/writing information from prior compilations to a file on disk
         "removeComments": true, // Disable emitting comments
         "skipDefaultLibCheck": true, // Skip type checking .d.ts files that are included with TypeScript
-        "downlevelIteration": true
+        "downlevelIteration": true,
+        "paths": { "@deriv/*": ["./packages/*/src"] }
     },
     "include": ["utils.d.ts"],
+    "ts-node": {
+        "compilerOptions": {
+            "module": "commonjs"
+        }
+    },
+    "files": ["./types/global.d.ts", "./types/utils.d.ts", "./types/svg.d.ts"],
     "exclude": ["node_modules", "build", "**/*.js", "**/*.jsx"] // *** The files to not type check ***
 }

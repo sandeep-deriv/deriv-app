@@ -3,6 +3,7 @@ export type TModalContent = {
     selectAccountTypeCard: React.Dispatch<React.SetStateAction<string>>;
     is_financial_available: boolean;
     is_synthetic_available: boolean;
+    is_swapfree_available: boolean;
 };
 
 export type TAccountType = {
@@ -20,7 +21,7 @@ export type TAccountCard = {
 };
 
 export type TTradingPlatformAvailableAccount = {
-    market_type: 'financial' | 'gaming';
+    market_type: 'financial' | 'gaming' | 'all';
     name: string;
     requirements: {
         after_first_deposit: {
@@ -34,4 +35,6 @@ export type TTradingPlatformAvailableAccount = {
     };
     shortcode: 'bvi' | 'labuan' | 'svg' | 'vanuatu';
     sub_account_type: string;
+    max_count?: number;
+    available_count?: number;
 };

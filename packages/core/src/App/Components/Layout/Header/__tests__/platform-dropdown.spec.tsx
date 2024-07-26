@@ -1,7 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { createBrowserHistory } from 'history';
+import { Router } from 'react-router-dom';
+import { StoreProvider, mockStore } from '@deriv/stores';
+import { routes } from '@deriv/shared';
 import { PlatformDropdown, PlatformBox } from '../platform-dropdown';
 
 type TMockPlatformDropdown = {
@@ -9,80 +13,88 @@ type TMockPlatformDropdown = {
         link_to?: string;
         href?: string;
         name: string;
-        title: () => string;
         description: () => string;
     }[];
 };
 
-jest.mock('Stores/connect.js', () => ({
-    __esModule: true,
-    default: 'mockedDefaultExport',
-    connect:
-        () =>
-        <T,>(Component: T) =>
-            Component,
-}));
+const history = createBrowserHistory();
+const store = mockStore({});
 
 const MockPlatformDropdown = ({ platform_config }: TMockPlatformDropdown) => {
     return (
-        <BrowserRouter>
-            <PlatformDropdown
-                platform_config={platform_config}
-                app_routing_history={[{ pathname: '' }]}
-                closeDrawer={jest.fn()}
-            />
-        </BrowserRouter>
+        <Router history={history}>
+            <StoreProvider store={store}>
+                <PlatformDropdown
+                    platform_config={platform_config}
+                    app_routing_history={[{ pathname: '' }]}
+                    closeDrawer={jest.fn()}
+                    setTogglePlatformType={jest.fn()}
+                />
+            </StoreProvider>
+        </Router>
     );
 };
 
 describe('PlatformBox component', () => {
-    it('should render "title", "icon" and "description"', () => {
+    it('should render "icon" and "description"', () => {
         const platform = {
             icon: 'test',
-            title: () => 'test title',
             description: () => 'test description',
         };
         render(<PlatformBox platform={platform} />);
         const icon = screen.getByTestId('dt_platform_box_icon');
-        const title = screen.getByText('test title');
         const description = screen.getByText('test description');
         expect(icon).toBeInTheDocument();
-        expect(title).toBeInTheDocument();
         expect(description).toBeInTheDocument();
     });
 });
 
 describe('PlatformDropdown component', () => {
-    beforeAll(() => (ReactDOM.createPortal = jest.fn(element => element)));
-    afterEach(() => ReactDOM.createPortal.mockClear());
+    const tradershub_redirect = "Looking for CFDs? Go to Trader's Hub";
+    const dtrader_description = 'DTrader description';
+    const dtrader_platform_config = {
+        link_to: routes.trade,
+        name: 'DTrader',
+        description: () => 'DTrader description',
+    };
+    const dtrader_url_params = '?chart_type=area&interval=1t&symbol=1HZ100V&trade_type=accumulator';
 
-    it('should render proper component base on the "link_to" property', () => {
-        const { rerender } = render(
-            <MockPlatformDropdown
-                platform_config={[
-                    {
-                        link_to: '/test',
-                        name: 'DTrader',
-                        title: () => 'test title',
-                        description: () => 'test description',
-                    },
-                ]}
-            />
-        );
+    beforeAll(() => (ReactDOM.createPortal = jest.fn(element => element) as jest.Mock));
+    afterEach(() => (ReactDOM.createPortal as jest.Mock).mockClear());
+
+    it('should render TradersHubRedirect & proper components based on whether or not "link_to" property is passed', () => {
+        const { rerender } = render(<MockPlatformDropdown platform_config={[dtrader_platform_config]} />);
         expect(screen.getByTestId('dt_platform_dropdown')).toBeInTheDocument();
+        expect(screen.getByText(tradershub_redirect)).toBeInTheDocument();
 
         rerender(
             <MockPlatformDropdown
                 platform_config={[
                     {
-                        href: '/test',
-                        name: 'DTrader',
-                        title: () => 'test title',
-                        description: () => 'test description',
+                        ...dtrader_platform_config,
+                        link_to: undefined,
+                        href: routes.trade,
                     },
                 ]}
             />
         );
         expect(screen.getByTestId('dt_platform_dropdown_link')).toBeInTheDocument();
+        expect(screen.getByText(tradershub_redirect)).toBeInTheDocument();
+    });
+    it('should update URL when clicking on another (non-selected) platform', () => {
+        history.push(routes.bot);
+        render(<MockPlatformDropdown platform_config={[dtrader_platform_config]} />);
+
+        userEvent.click(screen.getByText(dtrader_description));
+        expect(history.location.pathname).toBe(routes.trade);
+        expect(history.location.search).toBe('');
+    });
+    it('should not update URL when clicking on an already selected platform', () => {
+        history.push(routes.trade + dtrader_url_params);
+        render(<MockPlatformDropdown platform_config={[dtrader_platform_config]} />);
+
+        userEvent.click(screen.getByText(dtrader_description));
+        expect(history.location.pathname).toBe(routes.trade);
+        expect(history.location.search).toBe(dtrader_url_params);
     });
 });

@@ -1,19 +1,33 @@
 import React from 'react';
+import { MT5_ACCOUNT_STATUS, isMobile } from '@deriv/shared';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { isMobile } from '@deriv/shared';
-import { StoreProvider } from '@deriv/stores';
+import CashierProviders from '../../../../cashier-providers';
+import { mockStore } from '@deriv/stores';
+import { TError } from '../../../../types';
 import AccountTransferForm from '../account-transfer-form';
+import userEvent from '@testing-library/user-event';
+import { useMFAccountStatus } from '@deriv/hooks';
 
 jest.mock('@deriv/shared/src/utils/screen/responsive', () => ({
     ...jest.requireActual('@deriv/shared/src/utils/screen/responsive'),
     isMobile: jest.fn(),
 }));
 
-let mockRootStore;
+jest.mock('@deriv/hooks', () => ({
+    ...jest.requireActual('@deriv/hooks'),
+    useMFAccountStatus: jest.fn(),
+}));
+
+let mockRootStore: ReturnType<typeof mockStore>;
+
+jest.mock('Assets/svgs/trading-platform', () =>
+    jest.fn(props => <div data-testid={props.icon}>TradingPlatformIcon</div>)
+);
 
 describe('<AccountTransferForm />', () => {
     beforeEach(() => {
-        mockRootStore = {
+        (useMFAccountStatus as jest.Mock).mockReturnValue(null);
+        mockRootStore = mockStore({
             client: {
                 account_limits: {
                     daily_transfers: {
@@ -25,7 +39,7 @@ describe('<AccountTransferForm />', () => {
                 mt5_login_list: [
                     {
                         login: 'value',
-                        market_type: 'gaming',
+                        market_type: 'financial',
                         server_info: {
                             geolocation: {
                                 region: 'region',
@@ -63,7 +77,14 @@ describe('<AccountTransferForm />', () => {
                             is_dxtrade: false,
                             balance: 0,
                         },
-                        selected_to: { currency: 'USD', is_mt: false, is_crypto: false, is_dxtrade: false, balance: 0 },
+                        selected_to: {
+                            currency: 'USD',
+                            is_mt: false,
+                            is_crypto: false,
+                            is_dxtrade: false,
+                            balance: 0,
+                            status: '',
+                        },
                         transfer_fee: 2,
                         transfer_limit: {
                             min: 0,
@@ -78,9 +99,6 @@ describe('<AccountTransferForm />', () => {
                     crypto_fiat_converter: {
                         resetConverter: jest.fn(),
                     },
-                    transaction_history: {
-                        onMount: jest.fn(),
-                    },
                 },
             },
             common: {
@@ -89,7 +107,7 @@ describe('<AccountTransferForm />', () => {
             traders_hub: {
                 selected_account: {},
             },
-        };
+        });
     });
     beforeAll(() => {
         const modal_root_el = document.createElement('div');
@@ -107,12 +125,12 @@ describe('<AccountTransferForm />', () => {
         error: {
             code: 'testCode',
             message: 'testMessage',
-        },
+        } as TError,
     };
 
     const renderAccountTransferForm = () => {
         render(<AccountTransferForm {...props} />, {
-            wrapper: ({ children }) => <StoreProvider store={mockRootStore}>{children}</StoreProvider>,
+            wrapper: ({ children }) => <CashierProviders store={mockRootStore}>{children}</CashierProviders>,
         });
     };
 
@@ -120,7 +138,7 @@ describe('<AccountTransferForm />', () => {
         renderAccountTransferForm();
 
         expect(screen.getByTestId('dt_account_transfer_form_wrapper')).toBeInTheDocument();
-        expect(screen.getByText('Transfer between your accounts in Deriv')).toBeInTheDocument();
+        expect(screen.getByText('Cashier Error')).toBeInTheDocument();
     });
 
     it('should show loader if account_list.length === 0', () => {
@@ -176,6 +194,17 @@ describe('<AccountTransferForm />', () => {
         expect(await screen.findByText('Insufficient balance')).toBeInTheDocument();
     });
 
+    it('should show an error and transfer button should be disabled if useMFAccountStatus is pending', async () => {
+        (useMFAccountStatus as jest.Mock).mockReturnValue(MT5_ACCOUNT_STATUS.PENDING);
+
+        renderAccountTransferForm();
+
+        userEvent.type(screen.getByTestId('dt_account_transfer_form_input'), '1');
+
+        expect(await screen.findByText('Unavailable as your documents are still under review')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Transfer' })).toBeDisabled();
+    });
+
     it('should not allow to do transfer if accounts from and to are same', () => {
         (isMobile as jest.Mock).mockReturnValue(true);
         mockRootStore.modules.cashier.account_transfer.accounts_list[0].is_mt = true;
@@ -200,7 +229,7 @@ describe('<AccountTransferForm />', () => {
         props.error = {
             code: 'Fiat2CryptoTransferOverLimit',
             message: 'testMessage',
-        };
+        } as TError;
 
         renderAccountTransferForm();
 
@@ -211,24 +240,11 @@ describe('<AccountTransferForm />', () => {
         props.error = {
             code: 'testCode',
             message: 'testMessage',
-        };
+        } as TError;
 
         renderAccountTransferForm();
 
         expect(screen.getByText('Cashier Error')).toBeInTheDocument();
-    });
-
-    it('should show <AccountTransferNote /> component', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-
-        renderAccountTransferForm();
-
-        expect(screen.getByText('Transfer limits may vary depending on the exchange rates.')).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'Transfers may be unavailable due to high volatility or technical issues and when the exchange markets are closed.'
-            )
-        ).toBeInTheDocument();
     });
 
     it('should show proper hint about mt5 remained transfers', () => {
@@ -289,57 +305,122 @@ describe('<AccountTransferForm />', () => {
         expect(screen.getByText('You have 1 transfer remaining for today.')).toBeInTheDocument();
     });
 
-    it('should show proper note if transfer fee is 2% and is_crypto_to_crypto_transfer', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-        mockRootStore.modules.cashier.account_transfer.selected_from.is_crypto = true;
-        mockRootStore.modules.cashier.account_transfer.selected_from.currency = 'BTC';
-        mockRootStore.modules.cashier.account_transfer.selected_to.is_crypto = true;
-        mockRootStore.modules.cashier.account_transfer.selected_to.currency = 'BTC';
-        mockRootStore.modules.cashier.account_transfer.transfer_fee = 2;
-
+    it('should display "no new positions can be opened" when transferring amount to a migrated svg account with position', () => {
+        mockRootStore.modules.cashier.account_transfer.selected_to.status = 'migrated_with_position';
         renderAccountTransferForm();
 
-        expect(
-            screen.getByText(
-                'We’ll charge a 2% transfer fee or 0 BTC, whichever is higher, for transfers between your Deriv cryptocurrency accounts. Please bear in mind that some transfers may not be possible.'
-            )
-        ).toBeInTheDocument();
+        expect(screen.getByText(/You can no longer open new positions with this account./i)).toBeInTheDocument();
+        expect(screen.queryByText(/You have 0 transfer remaining for today./i)).not.toBeInTheDocument();
     });
 
-    it('should show proper note if transfer fee is 2%, is_mt_transfer, and is_dxtrade_allowed is false', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-        mockRootStore.modules.cashier.account_transfer.selected_from.is_mt = true;
-        mockRootStore.modules.cashier.account_transfer.selected_to.is_mt = true;
-        mockRootStore.modules.cashier.account_transfer.transfer_fee = 2;
-
+    it('should display "no new positions can be opened" when transferring amount to a migrated svg account without position', () => {
+        mockRootStore.modules.cashier.account_transfer.selected_to.status = 'migrated_without_position';
         renderAccountTransferForm();
 
-        expect(
-            screen.getByText(
-                'We’ll charge a 2% transfer fee or 0 USD, whichever is higher, for transfers between your Deriv cryptocurrency and Deriv MT5 accounts. Please bear in mind that some transfers may not be possible.'
-            )
-        ).toBeInTheDocument();
+        expect(screen.getByText(/You can no longer open new positions with this account./i)).toBeInTheDocument();
+        expect(screen.queryByText(/You have 0 transfer remaining for today./i)).not.toBeInTheDocument();
     });
 
-    it('should show proper note if transfer fee is 2% and is_mt_transfer is false', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-        mockRootStore.modules.cashier.account_transfer.transfer_fee = 2;
+    describe('<Dropdown />', () => {
+        const accountsList = [
+            {
+                currency: 'BTC',
+                is_mt: false,
+                is_dxtrade: false,
+                is_crypto: true,
+                text: 'BTC',
+                value: 'CR90000249',
+            },
+            {
+                currency: 'USD',
+                is_mt: false,
+                is_dxtrade: false,
+                is_crypto: false,
+                text: 'USD',
+                value: 'CR90000212',
+            },
+            {
+                currency: 'USD',
+                is_mt: false,
+                is_dxtrade: true,
+                is_crypto: false,
+                platform_icon: 'IcRebrandingDeriv X',
+                text: 'Deriv X',
+                value: 'DXR1029',
+            },
+            {
+                text: 'USD',
+                currency: 'USD',
+                value: 'MTR40013177',
+                platform_icon: 'Standard',
+                is_crypto: false,
+                is_mt: true,
+                is_dxtrade: false,
+            },
+        ];
 
-        renderAccountTransferForm();
+        const derivx_account = {
+            currency: 'USD',
+            is_mt: false,
+            is_dxtrade: true,
+            is_crypto: false,
+            platform_icon: 'IcDxtradeDeriv X',
+            text: 'Deriv X',
+            value: 'DXR1029',
+        };
 
-        expect(
-            screen.getByText(
-                'We’ll charge a 2% transfer fee or 0 USD, whichever is higher, for transfers between your Deriv fiat and Deriv cryptocurrency accounts. Please bear in mind that some transfers may not be possible.'
-            )
-        ).toBeInTheDocument();
-    });
+        const currency_usd_account = {
+            text: 'USD',
+            value: 'CR90000212',
+            balance: '9953.89',
+            currency: 'USD',
+            is_crypto: false,
+            is_mt: false,
+            is_dxtrade: false,
+        };
 
-    it('should show proper note if transfer fee is null', () => {
-        (isMobile as jest.Mock).mockReturnValue(true);
-        mockRootStore.modules.cashier.account_transfer.transfer_fee = null;
+        const mt5_account = {
+            text: 'USD',
+            currency: 'USD',
+            value: 'MTR40013177',
+            is_crypto: false,
+            is_mt: true,
+            is_dxtrade: false,
+        };
 
-        renderAccountTransferForm();
+        describe('from_dropdown', () => {
+            it('should check for USD icon when USD is selected in from_dropdown', () => {
+                mockRootStore.modules.cashier.account_transfer.accounts_list = accountsList;
+                mockRootStore.modules.cashier.account_transfer.selected_from = currency_usd_account;
+                mockRootStore.modules.cashier.account_transfer.setTransferPercentageSelectorResult = jest
+                    .fn()
+                    .mockReturnValue(10.0);
 
-        expect(screen.getByText('Please bear in mind that some transfers may not be possible.')).toBeInTheDocument();
+                renderAccountTransferForm();
+                expect(screen.getByTestId('dt_account_platform_icon_currency_usd')).toBeInTheDocument();
+            });
+
+            it('should check for MT5 icon when MT5 is selected in from_dropdown', () => {
+                mockRootStore.modules.cashier.account_transfer.accounts_list = accountsList;
+                mockRootStore.modules.cashier.account_transfer.selected_from = mt5_account;
+                mockRootStore.modules.cashier.account_transfer.setTransferPercentageSelectorResult = jest
+                    .fn()
+                    .mockReturnValue(100.0);
+
+                renderAccountTransferForm();
+                expect(screen.getByTestId('Standard')).toBeInTheDocument();
+            });
+
+            it('should check for DerivX icon when DerivX is selected in from_dropdown', () => {
+                mockRootStore.modules.cashier.account_transfer.accounts_list = accountsList;
+                mockRootStore.modules.cashier.account_transfer.selected_from = derivx_account;
+                mockRootStore.modules.cashier.account_transfer.setTransferPercentageSelectorResult = jest
+                    .fn()
+                    .mockReturnValue(100.0);
+
+                renderAccountTransferForm();
+                expect(screen.getByTestId('dt_account_platform_icon_IcRebrandingDeriv X')).toBeInTheDocument();
+            });
+        });
     });
 });

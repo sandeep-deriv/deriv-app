@@ -42,7 +42,10 @@ const crypto_currencies_display_order = [
     'USDK',
 ];
 
-export const reorderCurrencies = (list: Array<{ value: string; type: string }>, type = 'fiat') => {
+export const reorderCurrencies = <T extends { value: string; type: string; name: string }>(
+    list: Array<T>,
+    type = 'fiat'
+) => {
     const new_order = type === 'fiat' ? fiat_currencies_display_order : crypto_currencies_display_order;
 
     return list.sort((a, b) => {
@@ -58,6 +61,11 @@ export const reorderCurrencies = (list: Array<{ value: string; type: string }>, 
 
 export const AMOUNT_MAX_LENGTH = 10;
 
+export const CURRENCY_TYPE = {
+    CRYPTO: 'crypto',
+    FIAT: 'fiat',
+} as const;
+
 export const getRoundedNumber = (number: number, currency: string) => {
     return Number(Number(number).toFixed(getDecimalPlaces(currency)));
 };
@@ -66,6 +74,9 @@ export const getFormattedText = (number: number, currency: string) => {
     return `${addComma(number, getDecimalPlaces(currency), isCryptocurrency(currency))} ${currency}`;
 };
 
+/**
+ * @deprecated Please use 'FormatUtils.formatMoney' from '@deriv-com/utils' instead of this.
+ */
 export const formatMoney = (
     currency_value: string,
     amount: number | string,
@@ -115,7 +126,7 @@ export const calcDecimalPlaces = (currency: string) => {
     return isCryptocurrency(currency) ? getPropertyValue(CryptoConfig.get(), [currency, 'fractional_digits']) : 2;
 };
 
-export const getDecimalPlaces = (currency: string) =>
+export const getDecimalPlaces = (currency = '') =>
     // need to check currencies_config[currency] exists instead of || in case of 0 value
     currencies_config[currency]
         ? getPropertyValue(currencies_config, [currency, 'fractional_digits'])

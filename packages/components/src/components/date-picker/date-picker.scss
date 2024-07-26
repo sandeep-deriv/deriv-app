@@ -4,10 +4,48 @@
     display: inline-block;
     width: 100%;
 
+    &__container {
+        display: flex;
+        border: 1px solid var(--border-normal);
+        border-radius: $BORDER_RADIUS;
+        align-items: center;
+        &:hover:not(.dc-input--disabled) {
+            border-color: var(--border-hover);
+        }
+        &:focus-within {
+            border-color: var(--brand-secondary);
+
+            &:hover {
+                border-color: var(--brand-secondary);
+            }
+        }
+        &--error {
+            border-color: var(--brand-red-coral) !important;
+        }
+        &--disabled {
+            border-color: var(--general-disabled);
+        }
+
+        @include mobile-or-tablet-screen {
+            input[type='date']::-webkit-calendar-picker-indicator {
+                background: transparent;
+                bottom: 0;
+                color: transparent;
+                cursor: pointer;
+                height: auto;
+                left: 0;
+                position: absolute;
+                right: 0;
+                top: 0;
+                width: auto;
+            }
+        }
+    }
+
     &__hint {
-        margin-left: 1.2rem;
+        margin-left: 1.3rem;
         position: absolute;
-        top: 4rem;
+        top: 4.1rem;
 
         &--relative {
             margin-left: 1.2rem;
@@ -21,7 +59,6 @@
             width: 100%;
             border-radius: $BORDER_RADIUS;
             box-sizing: border-box;
-            padding: 0 1.2rem;
             -webkit-appearance: none;
             -moz-appearance: none;
 
@@ -49,7 +86,8 @@
         }
     }
     .dc-icon {
-        top: 25%;
+        margin-bottom: 0.3rem;
+        margin-right: -0.2rem;
 
         &:not(.dc-icon--disabled) {
             cursor: pointer;
@@ -64,15 +102,18 @@
         &--left {
             &-enter,
             &-exit {
+                /*rtl:ignore*/
                 transform: translate3d(-275px, 0, 0);
                 opacity: 0;
             }
             &-enter-done {
+                /*rtl:ignore*/
                 transform: translate3d(-295px, 0, 0);
                 opacity: 1;
             }
             &-enter-done,
             &-exit {
+                /*rtl:ignore*/
                 transition: transform 0.25s ease, opacity 0.25s linear;
             }
         }
@@ -107,7 +148,10 @@
             }
         }
     }
-    @include mobile {
+    @include mobile-or-tablet-screen {
+        &--hint {
+            margin-bottom: 5rem;
+        }
         &__native {
             opacity: 0;
             width: 100%;
@@ -139,12 +183,12 @@
             margin-right: 1rem;
         }
         &__placeholder {
-            color: var(--text-less-prominent);
+            color: var(--text-general);
             transform: none;
             transition: transform 0.25s linear;
             position: absolute;
             font-size: 1.4rem;
-            left: 1.2rem;
+            left: 1.3rem;
 
             &--has-value {
                 transform: translate3d(-14px, -20px, 0px) scale(0.7);
@@ -157,15 +201,12 @@
             &--is-focused {
                 color: var(--brand-secondary);
             }
-            .dc-input--disabled & {
-                color: var(--text-disabled);
-            }
         }
         &__error {
             display: flex;
             position: absolute;
-            top: 4.4rem;
-            left: 1.2rem;
+            top: 4.5rem;
+            left: 1.3rem;
         }
     }
 }

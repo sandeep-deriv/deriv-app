@@ -3,6 +3,11 @@ import { screen, render } from '@testing-library/react';
 import { Icon } from '@deriv/components';
 import IconMessageContent from '../icon-message-content';
 
+jest.mock('@deriv-com/ui', () => ({
+    ...jest.requireActual('@deriv-com/ui'),
+    useDevice: jest.fn(() => ({ isDesktop: true })),
+}));
+
 jest.mock('@deriv/components', () => {
     const original_module = jest.requireActual('@deriv/components');
     return {
@@ -20,6 +25,7 @@ describe('<IconMessageContent />', () => {
 
     it('should render the IconWithMessage component', () => {
         render(<IconMessageContent {...props} />);
+
         expect(screen.getByTestId('mockedIcon')).toBeInTheDocument();
         expect(screen.getByText('sampleMessage')).toBeInTheDocument();
         expect(screen.getByText('sampleText')).toBeInTheDocument();

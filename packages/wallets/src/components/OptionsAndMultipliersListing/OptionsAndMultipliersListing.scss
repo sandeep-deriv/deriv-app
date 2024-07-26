@@ -1,0 +1,69 @@
+.wallets-options-and-multipliers-listing {
+    width: 100%;
+    height: 100%;
+    padding-top: 2.4rem;
+
+    @include mobile {
+        padding-top: unset;
+        margin-bottom: 0.8rem;
+        border-top: unset;
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        align-self: stretch;
+        padding-bottom: 2.4rem;
+        justify-content: space-between;
+
+        &-title {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        @include mobile {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-top: 1.6rem;
+            padding-bottom: 0;
+        }
+
+        &-subtitle {
+            &__link {
+                color: var(--brand-coral, #ff444f);
+                text-underline-offset: 0.3rem;
+            }
+        }
+    }
+
+    &__content {
+        display: grid;
+        gap: 1.6rem;
+        grid-template-columns: repeat(3, 1fr);
+        user-select: none;
+
+        @include mobile {
+            grid-template-rows: repeat(5, 1fr);
+            grid-template-columns: auto;
+            gap: 0;
+        }
+
+        &__icon {
+            cursor: pointer;
+        }
+
+        &__details {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+    }
+
+    &__icon {
+        width: fit-content;
+    }
+}

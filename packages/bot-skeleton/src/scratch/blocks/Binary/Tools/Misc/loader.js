@@ -1,7 +1,7 @@
 import { localize } from '@deriv/translations';
-import { loadBlocksFromRemote, runIrreversibleEvents } from '../../../../utils';
+import { loadBlocksFromRemote, runIrreversibleEvents, modifyContextMenu } from '../../../../utils';
 import { observer as globalObserver } from '../../../../../utils/observer';
-import { log_types } from '../../../../../constants/messages';
+import { LogTypes } from '../../../../../constants/messages';
 
 Blockly.Blocks.loader = {
     init() {
@@ -26,6 +26,9 @@ Blockly.Blocks.loader = {
             category: Blockly.Categories.Miscellaneous,
         };
     },
+    customContextMenu(menu) {
+        modifyContextMenu(menu);
+    },
     meta() {
         return {
             display_name: localize('Loads from URL'),
@@ -35,7 +38,7 @@ Blockly.Blocks.loader = {
         };
     },
     onchange(event) {
-        if (!this.workspace || this.isInFlyout) {
+        if (!this.workspace || Blockly.derivWorkspace.isFlyoutVisible) {
             return;
         }
 
@@ -75,7 +78,7 @@ Blockly.Blocks.loader = {
 
         loadBlocksFromRemote(this)
             .then(() => {
-                globalObserver.emit('ui.log.success', { log_type: log_types.LOAD_BLOCK });
+                globalObserver.emit('ui.log.success', { log_type: LogTypes.LOAD_BLOCK });
             })
             .catch(error_msg => {
                 globalObserver.emit('ui.log.error', error_msg);
@@ -92,4 +95,4 @@ Blockly.Blocks.loader = {
     },
 };
 
-Blockly.JavaScript.loader = () => {};
+Blockly.JavaScript.javascriptGenerator.forBlock.loader = () => {};

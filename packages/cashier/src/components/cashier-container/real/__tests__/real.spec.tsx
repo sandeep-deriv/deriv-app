@@ -1,41 +1,90 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { mockStore, StoreProvider } from '@deriv/stores';
+import { useCashierStore } from '../../../../stores/useCashierStores';
+import userEvent from '@testing-library/user-event';
 import Real from '../real';
 
 jest.mock('@deriv/components', () => ({
-    ...(jest.requireActual('@deriv/components') as any),
+    ...jest.requireActual('@deriv/components'),
     Loading: () => <div>Loading</div>,
 }));
 
+let mocked_cashier_store: DeepPartial<ReturnType<typeof useCashierStore>>;
+
+jest.mock('Stores/useCashierStores', () => ({
+    ...jest.requireActual('Stores/useCashierStores'),
+    useCashierStore: jest.fn(() => mocked_cashier_store),
+}));
+
 describe('<Real />', () => {
-    const props = {
-        iframe_url: 'https://www.test_url.com',
-        clearIframe: jest.fn(),
-        iframe_height: '',
-        is_loading: false,
-    };
+    beforeEach(() => {
+        mocked_cashier_store = {
+            iframe: {
+                clearIframe: jest.fn(),
+                iframe_height: 100,
+                iframe_url: 'https://www.test_url.com',
+                checkIframeLoaded: jest.fn(),
+                setContainerHeight: jest.fn(),
+            },
+            general_store: {
+                is_loading: false,
+            },
+        };
+    });
 
-    it('should render the component with iframe when iframe_url value is passed', () => {
-        render(<Real {...props} />);
-        const el_loader = screen.queryByText('Loading');
+    const mock_root_store = mockStore({});
 
-        expect(el_loader).not.toBeInTheDocument();
+    it('should show loader when is_loading is true or iframe_height is equal to 0', () => {
+        (useCashierStore as jest.Mock).mockReturnValueOnce({
+            ...mocked_cashier_store,
+            iframe: { ...mocked_cashier_store.iframe, iframe_height: 0 },
+        });
+
+        const { rerender } = render(
+            <StoreProvider store={mock_root_store}>
+                <Real />
+            </StoreProvider>
+        );
+
+        expect(screen.getByText('Loading')).toBeInTheDocument();
+
+        (useCashierStore as jest.Mock).mockReturnValueOnce({
+            ...mocked_cashier_store,
+            general_store: { is_loading: true },
+        });
+
+        rerender(
+            <StoreProvider store={mock_root_store}>
+                <Real />
+            </StoreProvider>
+        );
+
+        expect(screen.getByText('Loading')).toBeInTheDocument();
+    });
+
+    it('should render an iframe if iframe_url is not an empty string', () => {
+        render(
+            <StoreProvider store={mock_root_store}>
+                <Real />
+            </StoreProvider>
+        );
+
         expect(screen.queryByTestId('dt_doughflow_section')).toBeInTheDocument();
     });
 
-    it('should render the loading when is_loading is true', () => {
-        render(<Real {...props} iframe_url='' is_loading />);
-        const el_loader = screen.queryByText('Loading');
+    it('should trigger setIsDeposit callback when the user clicks on Cashier breadcrumb', () => {
+        render(
+            <StoreProvider store={mock_root_store}>
+                <Real />
+            </StoreProvider>
+        );
 
-        expect(el_loader).toBeInTheDocument();
-        expect(screen.queryByTestId('dt_doughflow_section')).not.toBeInTheDocument();
-    });
+        const el_breadcrumb_cashier = screen.queryByText(/cashier/i);
 
-    it('will display doughflow and loader if all props are provided', () => {
-        render(<Real {...props} is_loading />);
-        const el_loader = screen.queryByText('Loading');
-
-        expect(el_loader).toBeInTheDocument();
-        expect(screen.queryByTestId('dt_doughflow_section')).toBeInTheDocument();
+        if (el_breadcrumb_cashier) {
+            userEvent.click(el_breadcrumb_cashier);
+            expect(mocked_cashier_store.general_store?.setIsDeposit).toHaveBeenCalledWith(false);
+        }
     });
 });

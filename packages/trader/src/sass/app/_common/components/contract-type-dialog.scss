@@ -12,23 +12,43 @@
 
     &__wrapper {
         position: absolute;
-        width: 290px;
         right: calc(100% + 10px);
         top: -66px;
-        display: grid;
-        grid-auto-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         z-index: 2;
         border-radius: 4px;
-        background: var(--general-main-2);
+        background: var(--general-main-1);
         box-shadow: 0 2px 8px 0 var(--shadow-menu);
         min-width: 560px;
+        width: 290px;
         height: 680px;
-        max-height: calc(100vh - 100px);
+        max-height: 82vh;
         overflow: hidden;
 
         /* postcss-bem-linter: ignore */
         .dc-vertical-tab {
             max-height: 680px;
+
+            .learn-more {
+                height: 5.2rem;
+                margin: 1.6rem 0.8rem 0.8rem;
+                padding: 1.6rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none;
+                background-color: var(--general-section-1);
+                cursor: pointer;
+                border-radius: $BORDER_RADIUS;
+                @include rtl {
+                    direction: rtl;
+
+                    .dc-icon {
+                        rotate: 180deg;
+                    }
+                }
+            }
         }
         /* postcss-bem-linter: ignore */
         .dc-vertical-tab__action-bar {
@@ -37,13 +57,23 @@
             height: 56px;
             width: 320px;
 
+            &--contract-type-info-header {
+                width: 56rem;
+            }
+
             /* postcss-bem-linter: ignore */
             .dc-input {
+                @include rtl {
+                    direction: rtl;
+                }
                 margin-bottom: 0;
 
                 /* postcss-bem-linter: ignore */
                 &__field {
                     padding: 0.8rem 1.2rem 0.8rem 3.6rem;
+                    @include rtl {
+                        padding: 0.8rem 3.6rem 0.8rem 1.2rem;
+                    }
                     height: 3.2rem;
 
                     /* postcss-bem-linter: ignore */
@@ -53,7 +83,7 @@
                 }
                 /* postcss-bem-linter: ignore */
                 &__leading-icon {
-                    top: 0.8rem;
+                    top: 1.2rem;
                 }
                 /* postcss-bem-linter: ignore */
                 &__trailing-icon {
@@ -77,12 +107,23 @@
 
             /* postcss-bem-linter: ignore */
             .dc-vertical-tab__header-title {
+                @include rtl {
+                    direction: rtl;
+                }
                 height: 56px;
+            }
+            .dc-vertical-tab__header {
+                @include rtl {
+                    direction: rtl;
+                }
             }
         }
         /* postcss-bem-linter: ignore */
         .contract-type-info__wrapper {
             height: calc(100% - 2.4rem - 18px);
+        }
+        .inline-message__information {
+            margin: 1.6rem 0.8rem -0.8rem;
         }
     }
     &--enter,
@@ -98,4 +139,12 @@
         opacity: 1;
         pointer-events: auto;
     }
+}
+
+.contract-type-widget__header ~ .dc-mobile-dialog__content {
+    height: 100%;
+}
+
+.dc-mobile-dialog__contracts-modal-info {
+    overflow-y: hidden;
 }

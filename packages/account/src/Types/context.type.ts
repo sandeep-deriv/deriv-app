@@ -1,18 +1,6 @@
-import { TToken } from './common-prop.type';
-
-export type TPlatformContext = {
-    is_appstore?: boolean;
-    displayName?: string;
-};
+import { TToken } from './common.type';
 
 export type TApiContext = {
-    api_tokens: NonNullable<TToken[]> | undefined;
+    api_tokens: NonNullable<TToken[]>;
     deleteToken: (token: string) => Promise<void>;
-    footer_ref: Element | DocumentFragment | undefined;
-    overlay_ref:
-        | ((...args: unknown[]) => unknown)
-        | import('prop-types').InferProps<{
-              current: import('prop-types').Requireable<unknown>;
-          }>;
-    toggleOverlay: () => void;
 };

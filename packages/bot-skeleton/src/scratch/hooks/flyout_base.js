@@ -1,4 +1,4 @@
-import { config } from '../../constants/config';
+//import { config } from '../../constants/config';
 import DBotStore from '../dbot-store';
 
 /**
@@ -11,7 +11,7 @@ import DBotStore from '../dbot-store';
 Blockly.Flyout.prototype.createBlock = function (event, original_block) {
     Blockly.Events.disable();
 
-    const main_workspace = this.targetWorkspace_;
+    const main_workspace = this.targetWorkspace;
     const variables_before_creation = main_workspace.getAllVariables();
 
     main_workspace.setResizesEnabled(false);
@@ -34,20 +34,21 @@ Blockly.Flyout.prototype.createBlock = function (event, original_block) {
         // Delete blocks of which we can only have a single instance. Dispose emits a BlockDelete
         // event that respects the current Blockly.Events group, this is required to maintain
         // a working undo/redo stack.
-        if (config.single_instance_blocks.includes(new_block.type)) {
-            main_workspace.getAllBlocks().forEach(ws_block => {
-                if (ws_block.type === new_block.type && ws_block.id !== new_block.id) {
-                    ws_block.dispose();
-                }
-            });
-        }
+        //commentrd this since it create=s two instances of the blockl from flyout
+        //if (config.single_instance_blocks.includes(new_block.type)) {
+        main_workspace.getAllBlocks().forEach(ws_block => {
+            if (ws_block.type === new_block.type && ws_block.id !== new_block.id) {
+                ws_block.dispose();
+            }
+        });
+        //}
 
         // Fire a VarCreate event for each (if any) new variable created.
         new_variables.forEach(new_variable => {
             Blockly.Events.fire(new Blockly.Events.VarCreate(new_variable));
         });
 
-        Blockly.Events.fire(new Blockly.Events.Create(new_block));
+        Blockly.Events.fire(new Blockly.Events.BlockCreate(new_block));
     }
 
     if (this.autoClose) {
@@ -70,8 +71,8 @@ Blockly.Flyout.prototype.createBlock = function (event, original_block) {
  * @return {!Blockly.Block} The new block in the main workspace.
  * @private
  */
-Blockly.Flyout.prototype.placeNewBlock_ = function (event, old_block) {
-    const main_workspace = this.targetWorkspace_;
+Blockly.Flyout.prototype.placeNewBlock_ = function (event, old_block = Blockly.getSelected()) {
+    const main_workspace = this.targetWorkspace;
     const svg_root_old = old_block.getSvgRoot();
 
     if (!svg_root_old) {
@@ -100,13 +101,12 @@ Blockly.Flyout.prototype.placeNewBlock_ = function (event, old_block) {
         const main_offset_pixels = main_workspace.getOriginOffsetInPixels();
 
         // The position of the old block in pixels relative to the flyout workspace's origin.
-        const toolbar_height = 56;
-        const header_height = 48;
+        const x_offset = 25;
+        const y_offset = 160;
         const old_block_pos_pixels = new goog.math.Coordinate(
-            event.clientX ? event.clientX : 0,
-            event.clientY ? event.clientY - toolbar_height - header_height : 0
+            event.clientX ? event.clientX - x_offset : 0,
+            event.clientY ? event.clientY - y_offset : 0
         );
-
         // The position of the old block in pixels relative to the origin of the main workspace.
         const final_offset_pixels = goog.math.Coordinate.difference(old_block_pos_pixels, main_offset_pixels);
 

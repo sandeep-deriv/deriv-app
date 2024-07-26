@@ -1,23 +1,32 @@
-import { action, extendObservable, observable, toJS, makeObservable } from 'mobx';
+import { action, extendObservable, observable, makeObservable, runInAction } from 'mobx';
 import {
+    ChartBarrierStore,
+    isAccumulatorContract,
+    isDigitContract,
     isEnded,
     isEqualObject,
     isMultiplierContract,
-    isDigitContract,
+    isResetContract,
+    isOpen,
+    isTurbosContract,
     getDigitInfo,
     getDisplayStatus,
+    getLimitOrder,
     WS,
     getContractUpdateConfig,
     getContractValidationRules,
-    BARRIER_COLORS,
     BARRIER_LINE_STYLES,
+    DEFAULT_SHADES,
     isBarrierSupported,
+    getAccuBarriersDefaultTimeout,
+    getAccuBarriersForContractDetails,
     getEndTime,
+    BARRIER_COLORS,
+    getContractStatus,
+    setLimitOrderBarriers,
 } from '@deriv/shared';
 import { getChartConfig } from './Helpers/logic';
-import { setLimitOrderBarriers, getLimitOrder } from './Helpers/limit-orders';
-import { ChartBarrierStore } from './chart-barrier-store';
-import { createChartMarkers } from './Helpers/chart-markers';
+import { createChartMarkers, calculateMarker, getAccumulatorMarkers } from './Helpers/chart-markers';
 import BaseStore from './base-store';
 
 export default class ContractStore extends BaseStore {
@@ -28,6 +37,9 @@ export default class ContractStore extends BaseStore {
         });
 
         makeObservable(this, {
+            accu_high_barrier: observable,
+            accu_low_barrier: observable,
+            cached_barriers_data: observable,
             digits_info: observable,
             sell_info: observable,
             contract_config: observable.ref,
@@ -47,12 +59,14 @@ export default class ContractStore extends BaseStore {
             barriers_array: observable.shallow,
             markers_array: observable.shallow,
             marker: observable.ref,
+            accumulator_marker: observable.ref,
             populateConfig: action.bound,
             populateContractUpdateConfig: action.bound,
             populateContractUpdateHistory: action.bound,
             clearContractUpdateConfigValues: action.bound,
             onChange: action.bound,
             updateLimitOrder: action.bound,
+            getContractsArray: action.bound,
         });
 
         this.root_store = root_store;
@@ -76,6 +90,11 @@ export default class ContractStore extends BaseStore {
     is_static_chart = false;
     end_time = null;
 
+    // Accumulator contract
+    accu_high_barrier = null;
+    accu_low_barrier = null;
+    cached_barriers_data = {};
+
     // Multiplier contract update config
     contract_update_take_profit = '';
     contract_update_stop_loss = '';
@@ -89,20 +108,22 @@ export default class ContractStore extends BaseStore {
     barriers_array = [];
     markers_array = [];
     marker = null;
+    accumulator_marker = null;
 
     // ---- Normal properties ---
     is_ongoing_contract = false;
 
-    populateConfig(contract_info) {
+    populateConfig(contract_info, is_last_contract = false) {
         const prev_contract_info = this.contract_info;
         this.contract_info = contract_info;
         this.end_time = getEndTime(this.contract_info);
-
+        const { accu_high_barrier, accu_low_barrier } = getAccuBarriersForContractDetails(contract_info);
+        this.accu_high_barrier = accu_high_barrier;
+        this.accu_low_barrier = accu_low_barrier;
         // TODO: don't update the barriers & markers if they are not changed
         this.updateBarriersArray(contract_info, this.root_store.ui.is_dark_mode_on);
         this.markers_array = createChartMarkers(this.contract_info);
-        this.marker = calculate_marker(this.contract_info);
-
+        this.marker = calculateMarker(this.contract_info, this.root_store.ui.is_dark_mode_on, is_last_contract);
         this.contract_config = getChartConfig(this.contract_info);
         this.display_status = getDisplayStatus(this.contract_info);
         this.is_ended = isEnded(this.contract_info);
@@ -122,8 +143,10 @@ export default class ContractStore extends BaseStore {
         }
 
         const is_multiplier = isMultiplierContract(this.contract_info.contract_type);
+        const is_accumulator = isAccumulatorContract(this.contract_info.contract_type);
+        const is_turbos = isTurbosContract(this.contract_info.contract_type);
 
-        if (is_multiplier && contract_info.contract_id && contract_info.limit_order) {
+        if ((is_accumulator || is_multiplier || is_turbos) && contract_info.contract_id && contract_info.limit_order) {
             this.populateContractUpdateConfig(this.contract_info);
         }
     }
@@ -153,18 +176,114 @@ export default class ContractStore extends BaseStore {
     }
 
     updateBarriersArray(contract_info, is_dark_mode) {
+        const {
+            barrier,
+            contract_type,
+            current_spot_high_barrier,
+            current_spot_low_barrier,
+            high_barrier,
+            low_barrier,
+            status,
+            current_spot_time,
+            underlying,
+            tick_stream: ticks = [],
+        } = contract_info || {};
+        const main_barrier = this.barriers_array?.[0];
+        if (isAccumulatorContract(contract_info.contract_type)) {
+            // even though updateBarriersArray is called both in DTrader & C.Details pages,
+            // the below code will delay Accumulator barriers and their labels only in Contract Details.
+            if (
+                this.cached_barriers_data.current_spot_high_barrier === current_spot_high_barrier &&
+                this.cached_barriers_data.current_spot_low_barrier === current_spot_low_barrier &&
+                this.cached_barriers_data.high_barrier === high_barrier &&
+                this.cached_barriers_data.low_barrier === low_barrier &&
+                this.cached_barriers_data.status === status
+            ) {
+                return;
+            }
+
+            const contract_status = getContractStatus(contract_info);
+            const is_accu_contract_ended = contract_status !== 'open';
+            const prev_epoch = is_accu_contract_ended
+                ? ticks[ticks.length - 2]?.epoch || ticks[ticks.length - 1]?.epoch
+                : current_spot_time;
+
+            if (is_accu_contract_ended) {
+                this.accumulator_marker = getAccumulatorMarkers({
+                    high_barrier,
+                    low_barrier,
+                    prev_epoch,
+                    is_dark_mode_on: is_dark_mode,
+                    contract_info,
+                    in_contract_details: true,
+                });
+            }
+
+            if (!this.barriers_array.length) {
+                // Accumulators barrier range in C.Details consists of labels (this.barriers_array) and horizontal lines with shade (this.marker)
+                this.barriers_array = this.createBarriersArray(
+                    {
+                        ...contract_info,
+                        high_barrier: this.accu_high_barrier,
+                        low_barrier: this.accu_low_barrier,
+                    },
+                    is_dark_mode
+                );
+                return;
+            }
+
+            setTimeout(
+                () =>
+                    runInAction(() => {
+                        if (contract_info) {
+                            if (isBarrierSupported(contract_type) && this.accu_high_barrier && this.accu_low_barrier) {
+                                // updating barrier labels in C.Details page
+                                main_barrier?.updateBarriers(this.accu_high_barrier, this.accu_low_barrier);
+                            }
+                            // this.markers_array contains tick markers & start/end vertical lines in C.Details page
+                            this.markers_array = createChartMarkers(contract_info, true);
+
+                            this.accumulator_marker = getAccumulatorMarkers({
+                                high_barrier: this.accu_high_barrier,
+                                low_barrier: this.accu_low_barrier,
+                                prev_epoch,
+                                is_dark_mode_on: this.root_store.ui.is_dark_mode_on,
+                                contract_info: this.contract_info,
+                                in_contract_details: true,
+                            });
+                        }
+                    }),
+                isOpen(contract_info) ? getAccuBarriersDefaultTimeout(underlying) : 0
+            );
+            this.cached_barriers_data = {
+                current_spot_high_barrier,
+                current_spot_low_barrier,
+                high_barrier,
+                low_barrier,
+                status,
+            };
+            return;
+        }
         if (!this.barriers_array.length) {
             this.barriers_array = this.createBarriersArray(contract_info, is_dark_mode);
             return;
         }
 
-        const main_barrier = this.barriers_array[0];
         if (contract_info) {
-            const { contract_type, barrier, high_barrier, low_barrier } = contract_info;
-
-            if (isBarrierSupported(contract_type) && (barrier || high_barrier)) {
-                main_barrier.updateBarriers(barrier || high_barrier, low_barrier);
-                main_barrier.updateBarrierColor(is_dark_mode);
+            if (
+                this.barriers_array.length === 1 &&
+                isResetContract(contract_info.contract_type) &&
+                contract_info.reset_time
+            ) {
+                this.barriers_array = this.createBarriersArray(contract_info, is_dark_mode);
+                return;
+            }
+            if (
+                isBarrierSupported(contract_type) &&
+                (barrier || high_barrier) &&
+                !isResetContract(contract_info.contract_type)
+            ) {
+                main_barrier?.updateBarriers(barrier || high_barrier, low_barrier);
             }
             if (
                 contract_info.contract_id &&
@@ -174,27 +293,71 @@ export default class ContractStore extends BaseStore {
                     barriers: this.barriers_array,
                     contract_info,
                     contract_type,
-                    is_over: true,
+                    is_over: !contract_info.sell_time,
                 });
             }
         }
     }
 
-    createBarriersArray = (contract_info, is_dark_mode) => {
+    createBarriersArray = contract_info => {
         let barriers = [];
         if (contract_info) {
-            const { contract_type, barrier, entry_spot, high_barrier, low_barrier } = contract_info;
-
-            if (isBarrierSupported(contract_type) && (barrier || high_barrier || entry_spot)) {
+            const {
+                contract_type,
+                barrier,
+                entry_spot,
+                high_barrier: high,
+                low_barrier,
+                reset_time,
+                reset_barrier,
+            } = contract_info;
+            const high_barrier = this.accu_high_barrier || barrier || high;
+            const common_props = {
+                not_draggable: true,
+                shade: DEFAULT_SHADES['2'],
+                color: BARRIER_COLORS.BLUE,
+            };
+            if (
+                isBarrierSupported(contract_type) &&
+                !isResetContract(contract_type) &&
+                (high_barrier || (entry_spot && !isAccumulatorContract(contract_type)))
+            ) {
                 // create barrier only when it's available in response
-                const main_barrier = new ChartBarrierStore(barrier || high_barrier || entry_spot, low_barrier, null, {
-                    color: is_dark_mode ? BARRIER_COLORS.DARK_GRAY : BARRIER_COLORS.GRAY,
-                    line_style: BARRIER_LINE_STYLES.SOLID,
-                    not_draggable: true,
+                const main_barrier = new ChartBarrierStore(
+                    high_barrier || entry_spot,
+                    this.accu_low_barrier || low_barrier,
+                    null,
+                    {
+                        ...common_props,
+                        line_style: !isAccumulatorContract(contract_type) && BARRIER_LINE_STYLES.SOLID,
+                        hideBarrierLine: isAccumulatorContract(contract_type),
+                        shade: isAccumulatorContract(contract_type) && DEFAULT_SHADES['2'],
+                    }
+                );
+
+                main_barrier.updateBarrierShade(true, contract_type);
+
+                barriers = [main_barrier];
+            } else if (isResetContract(contract_type) && entry_spot) {
+                const main_barrier = new ChartBarrierStore(entry_spot, low_barrier, null, {
+                    ...common_props,
                 });
 
                 main_barrier.updateBarrierShade(true, contract_type);
+
                 barriers = [main_barrier];
+
+                if (reset_time) {
+                    const reset_barrier_instance = new ChartBarrierStore(reset_barrier, low_barrier, null, {
+                        ...common_props,
+                        hideBarrierLine: true,
+                        line_style: BARRIER_LINE_STYLES.DASHED,
+                    });
+
+                    main_barrier.updateBarrierShade(false, contract_type);
+
+                    barriers.push(reset_barrier_instance);
+                }
             }
         }
         return barriers;
@@ -212,7 +375,11 @@ export default class ContractStore extends BaseStore {
     }
 
     updateLimitOrder() {
-        const limit_order = getLimitOrder(this);
+        const limit_order =
+            isAccumulatorContract(this.contract_info.contract_type) ||
+            isTurbosContract(this.contract_info.contract_type)
+                ? { take_profit: getLimitOrder(this).take_profit }
+                : getLimitOrder(this);
 
         WS.contractUpdate(this.contract_id, limit_order).then(response => {
             if (response.error) {
@@ -233,104 +400,9 @@ export default class ContractStore extends BaseStore {
             this.root_store.portfolio.populateContractUpdate(response, this.contract_id);
         });
     }
-}
 
-function calculate_marker(contract_info) {
-    if (!contract_info || isMultiplierContract(contract_info.contract_type)) {
-        return null;
+    getContractsArray() {
+        if (!this.accumulator_marker) return [];
+        return [this.accumulator_marker];
     }
-    const {
-        transaction_ids,
-        tick_stream,
-        contract_id,
-        date_start,
-        date_expiry,
-        entry_tick,
-        exit_tick,
-        entry_tick_time,
-        exit_tick_time,
-        contract_type,
-        tick_count,
-        barrier_count,
-        barrier,
-        high_barrier,
-        low_barrier,
-    } = contract_info;
-    const ticks_epoch_array = tick_stream ? tick_stream.map(t => t.epoch) : [];
-    const is_digit_contract = isDigitContract(contract_type);
-
-    // window.ci = toJS(contract_info);
-
-    let price_array = [];
-    if (is_digit_contract) {
-        price_array = [];
-    } else if (+barrier_count === 1 && barrier) {
-        price_array = [+barrier];
-    } else if (+barrier_count === 2 && high_barrier && low_barrier) {
-        price_array = [+low_barrier, +high_barrier];
-    }
-
-    if (entry_tick) {
-        price_array.push(entry_tick);
-    }
-    if (exit_tick) {
-        price_array.push(exit_tick);
-    }
-
-    if (!date_start) {
-        return null;
-    }
-    // if we have not yet received the first POC response
-    if (!transaction_ids) {
-        const type = is_digit_contract ? 'DigitContract' : 'TickContract';
-        return {
-            type,
-            contract_info: toJS(contract_info),
-            key: `${contract_id}-date_start`,
-            epoch_array: [date_start],
-            price_array,
-        };
-    }
-
-    if (tick_count >= 1) {
-        if (!isDigitContract(contract_type)) {
-            // TickContract
-            return {
-                contract_info: toJS(contract_info),
-                type: 'TickContract',
-                key: `${contract_id}-date_start`,
-                epoch_array: [date_start, ...ticks_epoch_array],
-                price_array,
-            };
-        }
-        // DigitContract
-        return {
-            contract_info: toJS(contract_info),
-            type: 'DigitContract',
-            key: `${contract_id}-date_start`,
-            epoch_array: [date_start, ...ticks_epoch_array],
-            price_array,
-        };
-    }
-    // NonTickContract
-    if (!tick_count) {
-        // getEndTime returns undefined when contract is running.
-        const end_time = getEndTime(contract_info) || date_expiry;
-        // the order of items in epoch_array matches the NonTickContract params.
-        const epoch_array = [date_start, end_time];
-        if (entry_tick_time) {
-            epoch_array.push(entry_tick_time);
-        }
-        if (exit_tick_time) {
-            epoch_array.push(exit_tick_time);
-        }
-        return {
-            contract_info: toJS(contract_info),
-            type: 'NonTickContract',
-            key: `${contract_id}-date_start`,
-            epoch_array,
-            price_array,
-        };
-    }
-    return null;
 }

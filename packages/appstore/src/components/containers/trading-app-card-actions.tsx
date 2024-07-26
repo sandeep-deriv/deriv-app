@@ -12,8 +12,11 @@ export type Actions = {
     has_divider?: boolean;
     onAction?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
     is_external?: boolean;
+    new_tab?: boolean;
     is_buttons_disabled?: boolean;
+    is_account_being_created?: boolean;
     is_real?: boolean;
+    is_new?: boolean;
 };
 
 const TradingAppCardActions = ({
@@ -21,18 +24,20 @@ const TradingAppCardActions = ({
     link_to,
     onAction,
     is_external,
+    new_tab,
+    is_account_being_created,
     is_buttons_disabled,
     is_real,
 }: Actions) => {
     switch (action_type) {
         case 'get':
             return (
-                <Button primary_light onClick={() => onAction?.()}>
+                <Button disabled={is_account_being_created} primary_light onClick={() => onAction?.()}>
                     {localize('Get')}
                 </Button>
             );
         case 'trade':
-            return <TradeButton link_to={link_to} onAction={onAction} is_external={is_external} />;
+            return <TradeButton link_to={link_to} onAction={onAction} is_external={is_external} new_tab={new_tab} />;
         case 'dxtrade':
             return <TradeButton link_to={link_to} />;
         case 'multi-action':

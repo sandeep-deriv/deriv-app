@@ -50,9 +50,11 @@ button.dc-input-wrapper {
         align-items: center;
 
         &--increment {
+            /* rtl:ignore */
             right: 2px;
         }
         &--decrement {
+            /* rtl:ignore */
             left: 2px;
         }
         &:hover {
@@ -60,7 +62,7 @@ button.dc-input-wrapper {
             cursor: pointer;
 
             & ~ .dc-input-wrapper__input {
-                @extend .input:hover;
+                @extend .input-hover;
             }
         }
         &:disabled:hover {
@@ -158,7 +160,8 @@ button.dc-input-wrapper {
     &::placeholder {
         border-color: var(--border-normal);
     }
-    &:hover {
+    &:hover,
+    &-hover {
         border-color: var(--border-hover);
     }
     &:active,

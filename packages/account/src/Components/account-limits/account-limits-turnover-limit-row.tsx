@@ -1,10 +1,10 @@
-import * as React from 'react';
+import React from 'react';
 import { formatMoney } from '@deriv/shared';
 import AccountLimitsTableCell from './account-limits-table-cell';
 import AccountLimitsContext, { TAccountLimitsContext } from './account-limits-context';
 
-type TAccountLimits = {
-    level: string;
+export type TAccountLimitsCollection = {
+    level?: string;
     name: string;
     payout_limit: number;
     profile_name: string;
@@ -12,8 +12,8 @@ type TAccountLimits = {
 };
 
 type TAccountLimitsTurnoverLimitRow = {
-    collection: TAccountLimits[];
-    title: string;
+    collection: TAccountLimitsCollection[];
+    title?: string;
 };
 
 const AccountLimitsTurnoverLimitRow = ({ collection, title }: TAccountLimitsTurnoverLimitRow) => {

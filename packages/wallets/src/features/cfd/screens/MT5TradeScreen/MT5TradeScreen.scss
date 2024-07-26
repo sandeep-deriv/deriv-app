@@ -1,0 +1,96 @@
+.wallets-mt5-trade-screen {
+    width: 100%;
+    max-width: 60rem;
+    min-width: 51.2rem;
+
+    @include mobile {
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+    }
+
+    &__label {
+        display: flex;
+        flex-direction: row;
+        gap: 0.6rem;
+    }
+
+    &__description {
+        display: flex;
+        align-items: center;
+        width: 100%;
+
+        &-balance {
+            margin-left: auto;
+        }
+
+        &-details {
+            display: flex;
+            flex-direction: column;
+            padding-left: 0.8rem;
+        }
+
+        &-icon {
+            & > svg {
+                width: 2.4rem;
+                height: 2.4rem;
+            }
+        }
+    }
+
+    &__content {
+        display: flex;
+        flex-direction: column;
+        padding: 2.4rem;
+        gap: 1.6rem;
+
+        &-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+
+            &-btn {
+                display: flex;
+                justify-content: flex-end;
+            }
+        }
+
+        &-clipboards {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+
+            & .wallets-mt5-trade-details-item:first-child {
+                border-radius: 0.7rem 0.7rem 0 0;
+            }
+
+            & .wallets-mt5-trade-details-item:last-child {
+                border-radius: 0 0 0.7rem 0.7rem;
+            }
+
+            & .wallets-mt5-trade-details-item--info:last-child {
+                border-radius: 0.4rem;
+            }
+        }
+
+        &-maintenance {
+            display: grid;
+            grid-template-columns: 1.6rem auto;
+            align-items: start;
+            gap: 0.8rem;
+        }
+    }
+
+    &__links {
+        width: 100%;
+
+        &-link {
+            align-items: center;
+            display: grid;
+            grid-template-columns: 10% auto 10%;
+            grid-gap: 1.6rem;
+            border-top: 0.2rem solid #f2f3f4;
+            padding: 1.6rem 2.4rem;
+        }
+    }
+}

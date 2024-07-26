@@ -1,5 +1,8 @@
 import { deriv_urls } from './constants';
 
+/**
+ * @deprecated Please use 'URLUtils.getQueryParameter' from '@deriv-com/utils' instead of this.
+ */
 export const getlangFromUrl = () => {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
@@ -7,6 +10,9 @@ export const getlangFromUrl = () => {
     return lang;
 };
 
+/**
+ * @deprecated Please use 'URLUtils.getQueryParameter' from '@deriv-com/utils' instead of this.
+ */
 export const getActionFromUrl = () => {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
@@ -30,10 +36,25 @@ export const getUrlSmartTrader = () => {
     return `${base_link}/${i18n_language.toLowerCase()}/trading.html`;
 };
 
-export const getUrlBinaryBot = () => {
-    const { is_deriv_app } = getPlatformFromUrl();
+export const getUrlBinaryBot = (is_language_required = true) => {
+    const { is_staging_deriv_app } = getPlatformFromUrl();
 
-    return is_deriv_app ? deriv_urls.BINARYBOT_PRODUCTION : deriv_urls.BINARYBOT_STAGING;
+    const url_lang = getlangFromUrl();
+    const i18n_language = window.localStorage.getItem('i18n_language') || url_lang || 'en';
+
+    const base_link = is_staging_deriv_app ? deriv_urls.BINARYBOT_STAGING : deriv_urls.BINARYBOT_PRODUCTION;
+
+    return is_language_required ? `${base_link}/?l=${i18n_language.toLowerCase()}` : base_link;
+};
+
+export const getUrlP2P = (is_language_required = true) => {
+    const { is_staging_deriv_app } = getPlatformFromUrl();
+
+    const url_lang = getlangFromUrl();
+    const i18n_language = window.localStorage.getItem('i18n_language') || url_lang || 'en';
+    const base_link = is_staging_deriv_app ? deriv_urls.P2P_STAGING : deriv_urls.P2P_PRODUCTION;
+
+    return is_language_required ? `${base_link}/?l=${i18n_language.toLowerCase()}` : base_link;
 };
 
 export const getPlatformFromUrl = (domain = window.location.hostname) => {
@@ -41,11 +62,13 @@ export const getPlatformFromUrl = (domain = window.location.hostname) => {
         is_staging_deriv_app: /^staging-app\.deriv\.(com|me|be)$/i.test(domain),
         is_deriv_app: /^app\.deriv\.(com|me|be)$/i.test(domain),
         is_test_link: /^(.*)\.binary\.sx$/i.test(domain),
+        is_test_deriv_app: /^test-app\.deriv\.com$/i.test(domain),
     };
 
     return {
         ...resolutions,
         is_staging: resolutions.is_staging_deriv_app,
+        is_test_link: resolutions.is_test_link,
     };
 };
 
@@ -53,4 +76,23 @@ export const isStaging = (domain = window.location.hostname) => {
     const { is_staging_deriv_app } = getPlatformFromUrl(domain);
 
     return is_staging_deriv_app;
+};
+
+export const isTestDerivApp = (domain = window.location.hostname) => {
+    const { is_test_deriv_app } = getPlatformFromUrl(domain);
+
+    return is_test_deriv_app;
+};
+
+export const removeActionParam = (action_to_remove: string) => {
+    const { pathname, search } = window.location;
+    const search_params = new URLSearchParams(search);
+
+    if (search_params.get('action') === action_to_remove) {
+        search_params.delete('action');
+    }
+    const new_search = search_params.toString();
+    const new_path = `${pathname}${new_search ? `?${new_search}` : ''}`;
+
+    window.history.pushState({}, '', new_path);
 };

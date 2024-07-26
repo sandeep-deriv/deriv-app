@@ -7,7 +7,7 @@
     }
 }
 
-@include mobile {
+@include mobile-or-tablet-screen {
     /** disabling pull to refresh on iOS / Android browsers */
     /* postcss-bem-linter: ignore */
     body,
@@ -50,6 +50,27 @@
         /* Making the wrapper stack above the body */
         overscroll-behavior: none;
         z-index: 2;
+
+        .trade-notifications {
+            position: absolute;
+            width: 40rem;
+            max-width: calc(100% - 1.6rem);
+            z-index: 6;
+            inset: 0.8rem 0.8rem auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .notification-messages {
+            .trade-notifications {
+                position: relative;
+                inset: unset;
+                max-width: 32.8rem;
+                width: calc(100% - 0.8rem);
+                margin-right: 0.4rem;
+                top: -0.8rem;
+            }
+        }
     }
     .modal-root {
         height: 100% !important;
@@ -68,59 +89,6 @@
             top: #{$HEADER_HEIGHT};
             position: absolute;
             right: 1.6rem;
-        }
-    }
-}
-
-/** @define landscape-blocker; weak */
-.landscape-blocker {
-    /* enable temporary landscape blocker UI in landscape */
-    display: flex;
-    position: fixed;
-    top: 0;
-    left: 0;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
-    background: var(--general-main-1);
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    color: var(--text-prominent);
-    font-size: 1.6rem;
-    z-index: 9999;
-    font-weight: bold;
-
-    &__icon {
-        width: 59px;
-        height: 64px;
-    }
-    &__message {
-        padding: 1.6rem 11rem;
-        line-height: 1.4;
-
-        &--landscape {
-            @media screen and (orientation: portrait) {
-                display: none;
-            }
-        }
-
-        &--portrait {
-            text-align: center;
-            margin-top: 2rem;
-            @media screen and (orientation: landscape) {
-                display: none;
-            }
-        }
-    }
-
-    @include desktop {
-        display: none;
-    }
-
-    @include mobile {
-        @media screen and (max-aspect-ratio: 13/9) {
-            display: none;
         }
     }
 }
@@ -145,10 +113,19 @@
     }
     &--is-onboarding {
         padding: 0;
-        margin: 0;
+        margin: 0 !important;
         height: inherit;
     }
-    @include mobile {
+
+    @include mobile-screen {
+        .ciq-menu {
+            top: 0;
+            margin: 0.8rem;
+            z-index: 2;
+        }
+    }
+
+    @include mobile-or-tablet-screen {
         // no footer:
         margin-bottom: 0;
         height: calc(100% - #{$MOBILE_HEADER_HEIGHT});
@@ -165,11 +142,16 @@
         &--is-hidden {
             margin-top: 0;
         }
-        .ciq-menu {
-            top: 0;
-            margin: 0.8rem;
-            z-index: 2;
+        &--is-dtrader-v2 {
+            height: calc(100% - #{$MOBILE_HEADER_DTRADER_V2_HEIGHT});
+            margin-block-start: $MOBILE_HEADER_DTRADER_V2_HEIGHT;
+
+            &--with-banner {
+                height: calc(100% - #{$MOBILE_HEADER_DTRADER_V2_WITH_BANNER_HEIGHT});
+                margin-block-start: $MOBILE_HEADER_DTRADER_V2_WITH_BANNER_HEIGHT;
+            }
         }
+
         .cq-symbol-select-btn {
             padding: 0.3rem 0.9rem;
 
@@ -191,6 +173,7 @@
                 padding: 0.4rem;
             }
         }
+
         .chart-container__loader {
             width: 100%;
             height: 100%;
@@ -233,6 +216,8 @@
 }
 
 /** @define advanced-simple-toggle */
+
+/*rtl:begin:ignore*/
 .advanced-simple-toggle {
     display: flex;
     justify-content: center;
@@ -266,6 +251,7 @@
         outline: none;
     }
 }
+/*rtl:end:ignore*/
 
 @mixin contract_type_icon_wrapper {
     width: 2.4em;
@@ -301,13 +287,6 @@
 .no-scroll {
     overflow: hidden;
     max-height: 100vh;
-}
-
-/** @define desktop-only */
-.desktop-only {
-    @media (max-width: 768px) {
-        display: none !important;
-    }
 }
 
 /** @define mobile-only */

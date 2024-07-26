@@ -34,6 +34,13 @@ export const getAccountTitle = loginid => {
     return types_map[getClientAccountType(loginid)] || types_map.default;
 };
 
+export const getAvailableAccount = market_type => {
+    if (market_type === 'all') {
+        return 'all';
+    }
+    return 'financial';
+};
+
 export const getLandingCompanyValue = ({ loginid, landing_company, isAccountOfType }) => {
     const key = 'changeable_fields';
     let landing_company_object;
@@ -54,46 +61,4 @@ export const getLandingCompanyValue = ({ loginid, landing_company, isAccountOfTy
         return landing_company_object;
     }
     return (landing_company_object || {})[key];
-};
-
-export const getMultipliersAccountStatus = authentication => {
-    const onfido_status = authentication?.identity?.services?.onfido?.status;
-    const manual_status = authentication?.identity?.services?.manual?.status;
-    const poa_status = authentication?.document?.status;
-
-    const STATUS = {
-        NONE: 'none',
-        VERIFIED: 'verified',
-        PENDING: 'pending',
-        REJECTED: 'rejected',
-        EXPIRED: 'expired',
-        SUSPECTED: 'suspected',
-    };
-    const failed_cases = [STATUS.REJECTED, STATUS.EXPIRED, STATUS.SUSPECTED];
-
-    const need_poa_resubmission = failed_cases.includes(poa_status);
-    const poa_pending = poa_status === STATUS.PENDING;
-    const poa_not_submitted = poa_status === STATUS.NONE;
-
-    const poi_verified_by_onfido_or_manual = [onfido_status, manual_status].includes(STATUS.VERIFIED);
-    const poi_pending_by_onfido_or_manual =
-        onfido_status &&
-        manual_status &&
-        [onfido_status, manual_status].includes(STATUS.PENDING) &&
-        !poi_verified_by_onfido_or_manual;
-
-    const poi_not_submitted_by_onfido_or_manual =
-        onfido_status && manual_status && [onfido_status, manual_status].every(status => status === STATUS.NONE);
-
-    const need_poi_resubmission_by_onfido_or_manual =
-        !poi_pending_by_onfido_or_manual && !poi_not_submitted_by_onfido_or_manual && !poi_verified_by_onfido_or_manual;
-
-    if (poi_not_submitted_by_onfido_or_manual || poa_not_submitted) {
-        return 'need_verification';
-    } else if (need_poi_resubmission_by_onfido_or_manual || need_poa_resubmission) {
-        return 'failed';
-    } else if (poi_pending_by_onfido_or_manual || poa_pending) {
-        return 'pending';
-    }
-    return null;
 };

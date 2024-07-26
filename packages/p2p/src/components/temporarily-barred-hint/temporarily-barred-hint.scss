@@ -1,0 +1,8 @@
+.temporarily-barred-hint {
+    margin-top: 1.6rem;
+    width: fit-content;
+
+    @include mobile {
+        margin: 1rem 2rem;
+    }
+}

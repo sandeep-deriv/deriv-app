@@ -3,13 +3,22 @@
  */
 
 module.exports = {
-    collectCoverage: true,
-    collectCoverageFrom: ['**/*.{js,jsx,ts,tsx}', '!**/node_modules/**'],
+    collectCoverage: false,
+    collectCoverageFrom: [
+        '**/*.{js,jsx,ts,tsx}',
+        '!**/node_modules/**',
+        '!**/dist/**',
+        '!/integration-tests/',
+        '!/component-tests/',
+    ],
     coverageReporters: ['lcov'],
     coverageDirectory: './coverage/',
-    testRegex: '(/__tests__/.*|(\\.)(test|spec))\\.(js|tsx)?$',
+    testRegex: '(/__tests__/.*|(\\.)(test|spec))\\.(js|jsx|tsx|ts)?$',
     // This is needed to transform es modules imported from node_modules of the target component.
-    transformIgnorePatterns: ['/node_modules/(?!@enykeev/react-virtualized).+\\.js$'],
+    transformIgnorePatterns: [
+        '/node_modules/(?!(@enykeev/react-virtualized|@simplewebauthn/browser|@deriv-com/ui|@deriv-com/quill-ui|@sendbird/chat)).+\\.js$',
+    ],
     setupFiles: ['<rootDir>/../../jest.setup.js'],
     setupFilesAfterEnv: ['<rootDir>/../../setupTests.js'],
+    testPathIgnorePatterns: ['/integration-tests/', '/component-tests/'],
 };

@@ -3,7 +3,7 @@ import { localize } from '@deriv/translations';
 import { info, log } from '../utils/broadcast';
 import { createError } from '../../../utils/error';
 import { observer as globalObserver } from '../../../utils/observer';
-import { log_types } from '../../../constants/messages';
+import { LogTypes } from '../../../constants/messages';
 
 const skeleton = {
     totalProfit: 0,
@@ -66,7 +66,7 @@ export default Engine =>
                 totalPayout: accountStat.totalPayout,
             });
 
-            log(win ? log_types.PROFIT : log_types.LOST, { currency, profit });
+            log(win ? LogTypes.PROFIT : LogTypes.LOST, { currency, profit });
         }
 
         updateAndReturnTotalRuns() {
@@ -108,6 +108,21 @@ export default Engine =>
                     throw createError('CustomLimitsReached', localize('Maximum loss amount reached'));
                 }
             }
+        }
+
+        /* eslint-disable class-methods-use-this */
+        validateTradeOptions(tradeOptions) {
+            const take_profit = tradeOptions.take_profit;
+            const stop_loss = tradeOptions.stop_loss;
+
+            if (take_profit) {
+                tradeOptions.limit_order.take_profit = take_profit;
+            }
+            if (stop_loss) {
+                tradeOptions.limit_order.stop_loss = stop_loss;
+            }
+
+            return tradeOptions;
         }
 
         getAccountStat() {

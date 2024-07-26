@@ -11,10 +11,10 @@ type TDialog = {
     cancel_button_text?: string;
     className?: string;
     confirm_button_text?: string;
-    dismissable: boolean;
+    dismissable?: boolean;
     disableApp?: () => void;
     enableApp?: () => void;
-    has_close_icon: boolean;
+    has_close_icon?: boolean;
     is_closed_on_cancel?: boolean;
     is_closed_on_confirm?: boolean;
     is_content_centered?: boolean;
@@ -26,7 +26,7 @@ type TDialog = {
     onConfirm: () => void;
     onEscapeButtonCancel?: () => void;
     portal_element_id?: string;
-    title?: string;
+    title?: React.ReactNode;
 };
 
 const Dialog = ({
@@ -98,7 +98,7 @@ const Dialog = ({
         }
     };
 
-    const validateClickOutside = () => dismissable || (has_close_icon && is_visible && is_closed_on_cancel);
+    const validateClickOutside = () => !!dismissable || !!(has_close_icon && is_visible && is_closed_on_cancel);
 
     useOnClickOutside(wrapper_ref, handleClose, validateClickOutside);
 

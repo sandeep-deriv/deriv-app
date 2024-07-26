@@ -1,17 +1,9 @@
 import React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Redirect, Route } from 'react-router-dom';
-import {
-    alternateLinkTagChange,
-    canonicalLinkTagChange,
-    redirectToLogin,
-    isEmptyObject,
-    routes,
-    removeBranchName,
-    default_title,
-} from '@deriv/shared';
+import { redirectToLogin, isEmptyObject, routes, removeBranchName, default_title } from '@deriv/shared';
 import { getLanguage } from '@deriv/translations';
-import { TBinaryRoutes, TRoute, TRouteConfig } from 'Types';
+import { TBinaryRoutes, TRoute, TRouteConfig } from '../../Types';
 
 type TRouteWithSubRoutesProps = TRouteConfig & TBinaryRoutes;
 
@@ -32,9 +24,9 @@ const RouteWithSubRoutes = (route: TRouteWithSubRoutesProps) => {
             redirectToLogin(route.is_logged_in, getLanguage());
         } else {
             const default_subroute: TRoute = (route.routes ?? []).reduce(
-                (acc, cur) => ({
+                (acc: TRoute, cur: TRoute) => ({
                     ...acc,
-                    ...cur.subroutes?.find(subroute => subroute.default),
+                    ...cur.subroutes?.find((subroute: TRoute) => subroute.default),
                 }),
                 {}
             );
@@ -51,11 +43,8 @@ const RouteWithSubRoutes = (route: TRouteWithSubRoutesProps) => {
             );
         }
 
-        const title = route.getTitle?.() || '';
+        const title = route.getTitle?.() ?? '';
         document.title = `${title} | ${default_title}`;
-
-        alternateLinkTagChange();
-        canonicalLinkTagChange();
 
         return result;
     };

@@ -1,5 +1,5 @@
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const IgnorePlugin = require('webpack').IgnorePlugin;
+const { IgnorePlugin } = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const path = require('path');
@@ -13,11 +13,11 @@ const {
     js_loaders,
     svg_file_loaders,
     svg_loaders,
+    IS_RELEASE,
 } = require('./loaders-config');
 
-const IS_RELEASE = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
 const ALIASES = {
+    'react/jsx-runtime': 'react/jsx-runtime.js',
     Assets: path.resolve(__dirname, '../src/Assets'),
     Components: path.resolve(__dirname, '../src/Components'),
     Configs: path.resolve(__dirname, '../src/Configs'),

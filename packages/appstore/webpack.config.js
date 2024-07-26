@@ -1,12 +1,15 @@
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
+const DefinePlugin = require('webpack').DefinePlugin;
+const Dotenv = require('dotenv-webpack');
 // const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const path = require('path');
 //TODO: Uncomment this line when type script migrations on all packages done
 //const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
-const is_release = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+const is_release =
+    process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'test';
 
 const svg_loaders = [
     {
@@ -26,7 +29,7 @@ const svg_loaders = [
                     { removeUselessStrokeAndFill: false },
                     { removeUknownsAndDefaults: false },
                 ],
-                floatPrecision: 2,
+                floatPrecision: 3,
             },
         },
     },
@@ -59,9 +62,17 @@ module.exports = function (env) {
                 Stores: path.resolve(__dirname, 'src/stores'),
                 Types: path.resolve(__dirname, 'src/types'),
                 Utils: path.resolve(__dirname, 'src/utils'),
+                Hooks: path.resolve(__dirname, 'src/hooks'),
+                Helpers: path.resolve(__dirname, 'src/helpers'),
             },
             extensions: ['.ts', '.tsx', '.js'],
         },
+        plugins: [
+            new Dotenv(),
+            new DefinePlugin({
+                'process.env.TRUSTPILOT_API_KEY': JSON.stringify(process.env.TRUSTPILOT_API_KEY),
+            }),
+        ],
         module: {
             rules: [
                 {
@@ -107,9 +118,6 @@ module.exports = function (env) {
                         'style-loader',
                         {
                             loader: 'css-loader',
-                            options: {
-                                url: false,
-                            },
                         },
                         {
                             loader: 'postcss-loader',
@@ -131,11 +139,22 @@ module.exports = function (env) {
                             loader: 'sass-resources-loader',
                             options: {
                                 // Provide path to the file with resources
-                                // eslint-disable-next-line global-require, import/no-dynamic-require
-                                resources: require('@deriv/shared/src/styles/index.js'),
+                                resources: [
+                                    // eslint-disable-next-line global-require, import/no-dynamic-require
+                                    ...require('@deriv/shared/src/styles/index.js'),
+                                ],
                             },
                         },
                     ],
+                },
+                {
+                    test: /\.svg$/,
+                    exclude: [/node_modules/, path.resolve('../', 'wallets')],
+                    include: /public\//,
+                    type: 'asset/resource',
+                    generator: {
+                        filename: 'appstore/public/[name].[contenthash][ext]',
+                    },
                 },
                 {
                     test: /\.svg$/,
@@ -156,7 +175,7 @@ module.exports = function (env) {
                   ]
                 : [],
         },
-        devtool: is_release ? undefined : 'eval-cheap-module-source-map',
+        devtool: is_release ? 'source-map' : 'eval-cheap-module-source-map',
         externals: [
             {
                 react: true,
@@ -171,6 +190,8 @@ module.exports = function (env) {
                 '@deriv/account': true,
                 '@deriv/cashier': true,
                 '@deriv/cfd': true,
+                '@deriv-com/analytics': `@deriv-com/analytics`,
+                '@deriv-com/translations': '@deriv-com/translations',
             },
         ],
         //TODO: Uncomment this line when type script migrations on all packages done

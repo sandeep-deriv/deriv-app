@@ -1,22 +1,29 @@
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import {
-    alternateLinkTagChange,
-    canonicalLinkTagChange,
-    redirectToLogin,
-    removeBranchName,
-    routes,
-    isEmptyObject,
-    default_title,
-} from '@deriv/shared';
+import { redirectToLogin, removeBranchName, routes, isEmptyObject, default_title } from '@deriv/shared';
 import { getLanguage } from '@deriv/translations';
 import Page404 from 'Modules/Page404';
-import { connect } from 'Stores/connect';
+import { observer, useStore } from '@deriv/stores';
+import { useFeatureFlags } from '@deriv/hooks';
 
-const RouteWithSubRoutes = route => {
+const RouteWithSubRoutes = observer(route => {
+    const { common } = useStore();
+
+    const { is_next_cashier_enabled } = useFeatureFlags();
+    const { checkAppId } = common;
     const validateRoute = pathname => {
-        if (pathname.startsWith('/cashier')) {
-            return route.path === pathname || !!(route.routes && route.routes.find(r => pathname === r.path));
+        if (pathname.startsWith('/cashier') && !pathname.includes('p2p') && !!route.routes) {
+            return route.path === pathname || !!route?.routes.find(({ path }) => pathname === path);
+        } else if (pathname.includes('p2p') && !!route.routes) {
+            const cashier_subroutes = route?.routes.find(({ path }) => path === '/cashier/p2p');
+            const p2p_subroutes =
+                pathname === '/cashier/p2p'
+                    ? routes.p2p_buy_sell
+                    : cashier_subroutes?.routes.find(({ path }) => pathname === path);
+
+            return route.path === pathname || !!p2p_subroutes;
+        } else if (pathname.includes(routes.cashier_v2) && !is_next_cashier_enabled) {
+            return false;
         }
         return true;
     };
@@ -28,7 +35,7 @@ const RouteWithSubRoutes = route => {
 
         // check if by re-rendering content should Platform app_id  change or not,
         if (is_valid_route) {
-            route.checkAppId();
+            checkAppId();
         }
 
         if (route.component === Redirect) {
@@ -66,16 +73,10 @@ const RouteWithSubRoutes = route => {
         const title = route.getTitle?.() || '';
         document.title = `${title} | ${default_title}`;
 
-        alternateLinkTagChange();
-        canonicalLinkTagChange();
-
         return result;
     };
 
     return <Route exact={route.exact} path={route.path} render={renderFactory} />;
-};
+});
 
-export default connect(({ gtm, common }) => ({
-    pushDataLayer: gtm.pushDataLayer,
-    checkAppId: common.checkAppId,
-}))(RouteWithSubRoutes);
+export default RouteWithSubRoutes;

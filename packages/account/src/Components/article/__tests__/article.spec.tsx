@@ -1,6 +1,7 @@
 import React from 'react';
 import { screen, render } from '@testing-library/react';
 import AccountArticle, { TArticle } from '../article';
+import userEvent from '@testing-library/user-event';
 
 describe('<AccountArticle/>', () => {
     const props: TArticle = {
@@ -22,20 +23,12 @@ describe('<AccountArticle/>', () => {
 
         expect(screen.getByText('Description 1')).toBeInTheDocument();
         expect(screen.getByText('Description 2')).toBeInTheDocument();
+    });
 
-        props.descriptions = [
-            {
-                key: 'key 1',
-                component: <>Description 3</>,
-            },
-            {
-                key: 'key 2',
-                component: <>Description 4</>,
-            },
-        ];
-        rerender(<AccountArticle {...props} />);
+    it("should invoke the callback on clicking the 'Learn more' link", () => {
+        render(<AccountArticle {...props} />);
 
-        expect(screen.getByText('Description 3')).toBeInTheDocument();
-        expect(screen.getByText('Description 4')).toBeInTheDocument();
+        userEvent.click(screen.getByText(/Learn more/i));
+        expect(props.onClickLearnMore).toHaveBeenCalledTimes(1);
     });
 });

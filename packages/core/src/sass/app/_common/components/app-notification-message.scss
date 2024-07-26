@@ -3,7 +3,9 @@
     width: 40rem;
     z-index: 6;
     position: absolute;
+    /*rtl:ignore*/
     right: 0;
+    margin-top: 1.6rem;
 
     > div {
         display: flex;
@@ -15,6 +17,10 @@
         max-width: calc(100% - 3.2rem);
         left: 1.6rem;
         right: 1.6rem;
+    }
+
+    &--traders-hub {
+        margin: 1rem 1rem 0 0;
     }
 }
 
@@ -31,6 +37,7 @@
     box-shadow: 0 4px 6px 0 var(--shadow-menu), 0 4px 6px 0 var(--shadow-menu);
     overflow: hidden;
     transition: transform 0.25s ease, opacity 0.25s linear;
+    direction: ltr;
 
     &--enter-done {
         opacity: 1;
@@ -72,7 +79,7 @@
     }
     &__close-button {
         position: absolute;
-        top: 0.4rem;
+        top: 1.05rem;
         right: 1.6rem;
         visibility: visible;
         background: none;
@@ -88,8 +95,9 @@
         &:after {
             content: '\0000D7';
             font-size: 30px;
-            font-weight: 300;
+            font-weight: 400;
             color: var(--text-prominent);
+            font-family: monospace;
         }
     }
     &__icon {
@@ -109,7 +117,7 @@
             left: -25px;
             bottom: -5px;
             pointer-events: none;
-            opacity: 0.07;
+            opacity: 0.08;
             z-index: 0;
 
             &--header-only {

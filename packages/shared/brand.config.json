@@ -12,45 +12,46 @@
     },
     "platforms": {
         "trader": {
-            "name": "DTrader",
-            "icon": "IcBrandDtrader"
+            "name": "Deriv Trader",
+            "icon": "IcRebrandingDerivTrader"
         },
         "dbot": {
-            "name": "DBot",
-            "icon": "IcBrandDbot"
+            "name": "Deriv Bot",
+            "icon": "IcRebrandingDerivBot"
         },
         "mt5": {
             "name": "Deriv MT5",
-            "icon": "IcBrandDmt5"
+            "icon": "IcRebrandingDmt5"
+        },
+        "ctrader": {
+            "name": "Deriv cTrader",
+            "icon": "IcRebrandingCtrader"
         },
         "dxtrade": {
             "name": "Deriv X",
-            "icon": "IcBrandDxtrade"
-        },
-        "derivez": {
-            "name": "Deriv EZ",
-            "icon": "IcDerivez"
+            "icon": "IcRebrandingDxtrade"
         },
         "smarttrader": {
             "name": "SmartTrader",
-            "icon": "IcBrandSmarttrader"
+            "icon": "IcRebrandingSmarttrader"
         },
         "bbot": {
             "name": "Binary Bot",
-            "icon": "IcBrandBinarybot"
+            "icon": "IcRebrandingBinaryBot"
         },
         "go": {
-            "name": "Deriv Go"
+            "name": "Deriv GO",
+            "icon": "IcRebrandingDerivGo"
         }
     },
     "platforms_appstore": {
         "trader": {
-            "name": "DTrader",
+            "name": "Deriv Trader",
             "icon": "DTrader",
             "availability": "All"
         },
         "dbot": {
-            "name": "DBot",
+            "name": "Deriv Bot",
             "icon": "DBot",
             "availability": "Non-EU"
         },
@@ -65,9 +66,14 @@
             "availability": "Non-EU"
         },
         "go": {
-            "name": "Deriv Go",
+            "name": "Deriv GO",
             "icon": "DerivGo",
             "availability": "Non-EU"
+        },
+        "ctrader": {
+            "name": "",
+            "icon": "",
+            "availability": ""
         }
     }
 }

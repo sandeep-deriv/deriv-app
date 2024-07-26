@@ -5,4 +5,24 @@
     --drawer-content-height-no-stat: calc(100vh - 233px);
     --drawer-scroll-height: calc(100vh - 365px);
     --drawer-content-height-mobile: calc(100% - 233px);
+    --tab-content-height: calc(100vh - 16.6rem);
+    --tab-content-height-mobile: calc(100vh - 12.6rem);
+    --zindex-drawer: 5;
+    --zindex-modal: 6;
+    --zindex-draggable-modal: 7;
+    --zindex-snackbar: 8;
+    &-dashboard {
+        background: var(--general-section-1);
+    }
+}
+
+.dc-modal {
+    &__container {
+        &_accounts-switcher {
+            @include tablet-screen {
+                width: unset !important;
+                right: 0;
+            }
+        }
+    }
 }

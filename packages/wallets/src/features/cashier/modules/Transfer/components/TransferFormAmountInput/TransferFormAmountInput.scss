@@ -1,0 +1,11 @@
+.wallets-transfer-form-amount-input {
+    display: flex;
+    position: relative;
+
+    &__max-btn,
+    &__timer {
+        position: absolute;
+        right: 0.8rem;
+        top: 0;
+    }
+}

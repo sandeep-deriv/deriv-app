@@ -1,11 +1,3 @@
-const template = (string, content) => {
-    let to_replace = content;
-    if (content && !Array.isArray(content)) {
-        to_replace = [content];
-    }
-    return string.replace(/\[_(\d+)]/g, (s, index) => to_replace[+index - 1]);
-};
-
 /**
  * Creates a DOM element and adds any attributes to it.
  *
@@ -34,15 +26,6 @@ const getStaticHash = () => {
         static_hash || (document.querySelector('script[src*="main"]').getAttribute('src') || '').split('.')[1];
     return static_hash;
 };
-
-class PromiseClass {
-    constructor() {
-        this.promise = new Promise((resolve, reject) => {
-            this.reject = reject;
-            this.resolve = resolve;
-        });
-    }
-}
 
 // TODO: [duplicate_code] - Move this to shared package
 // eu countries to support
@@ -92,13 +75,19 @@ const isOptionsBlocked = country => blocked_options_countries.includes(country);
 const multipliers_only_countries = ['de', 'es', 'it', 'lu', 'gr', 'au', 'fr'];
 const isMultipliersOnly = country => multipliers_only_countries.includes(country);
 
+const getRegion = (landing_company_shortcode, residence) => {
+    if (landing_company_shortcode === 'virtual') {
+        return isEuCountry(residence) ? 'eu' : 'row';
+    }
+    return landing_company_shortcode === 'svg' ? 'row' : 'eu';
+};
+
 module.exports = {
-    template,
     createElement,
     getStaticHash,
-    PromiseClass,
     isEuCountry,
     isOptionsBlocked,
     isSyntheticsUnavailable,
     isMultipliersOnly,
+    getRegion,
 };

@@ -1,6 +1,4 @@
 import React from 'react';
-import classNames from 'classnames';
-import { PlatformContext } from '@deriv/shared';
 import Icon from '../icon/icon';
 import Button from '../button/button';
 import Text from '../text';
@@ -11,8 +9,8 @@ type TSendEmailTemplate = {
     live_chat?: React.ReactNode;
     onClickSendEmail: () => void;
     resend_timeout?: number;
-    subtitle?: string;
-    title: string;
+    subtitle?: React.ReactNode;
+    title: React.ReactNode;
     txt_resend_in: string;
     txt_resend: string;
 };
@@ -32,7 +30,6 @@ const SendEmailTemplate = ({
     const [is_email_not_received_clicked, setIsEmailNotReceivedClicked] = React.useState(false);
     const [is_resend_btn_disabled, setIsResendBtnDisabled] = React.useState(false);
     const [resend_email_btn_text, setResendEmailBtnText] = React.useState(txt_resend);
-    const { is_appstore } = React.useContext<{ is_appstore: boolean }>(PlatformContext);
 
     const timeout_limit = resend_timeout || 60;
     let resend_interval: number;
@@ -70,13 +67,9 @@ const SendEmailTemplate = ({
     };
 
     return (
-        <div className={classNames('send-email-template', { 'send-email-template-dashboard': is_appstore })}>
+        <div className='send-email-template'>
             <div className='send-email-template__sent'>
-                <Icon
-                    icon={is_appstore ? 'IcEmailSentDashboard' : 'IcEmailSent'}
-                    className='send-email-template__icon'
-                    size={128}
-                />
+                <Icon icon='IcEmailSent' className='send-email-template__icon' size={128} />
                 <Text as='h1' align='center' className='send-email-template__title' color='prominent' weight='bold'>
                     {title}
                 </Text>

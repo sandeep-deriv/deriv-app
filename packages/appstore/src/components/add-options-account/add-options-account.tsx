@@ -2,17 +2,17 @@ import React from 'react';
 import { DesktopWrapper, MobileWrapper, Button, Text } from '@deriv/components';
 import { Localize, localize } from '@deriv/translations';
 import './add-options-account.scss';
-import { observer } from 'mobx-react-lite';
-import { useStores } from 'Stores';
+import { useStore, observer } from '@deriv/stores';
 import { isMobile, ContentFlag } from '@deriv/shared';
+import { Analytics } from '@deriv-com/analytics';
 
-const AddOptions = () => {
-    const { client, traders_hub, ui } = useStores();
-    const { is_real, content_flag } = traders_hub;
+const AddOptions = observer(() => {
+    const { client, traders_hub, ui } = useStore();
+    const { is_real, content_flag, selected_account_type } = traders_hub;
     const { setShouldShowCooldownModal, openRealAccountSignup } = ui;
     const { real_account_creation_unlock_date } = client;
 
-    const add_deriv_account_text = localize('You need a Deriv account to create a CFD account.');
+    const add_deriv_account_text = localize('To trade CFDs, get a Deriv Apps account first.');
     const add_deriv_account_btn = localize('Get a Deriv account');
 
     const eu_user = content_flag === ContentFlag.LOW_RISK_CR_EU || content_flag === ContentFlag.EU_REAL;
@@ -30,6 +30,12 @@ const AddOptions = () => {
                     type='submit'
                     has_effect
                     onClick={() => {
+                        Analytics.trackEvent('ce_tradershub_dashboard_form', {
+                            action: 'account_get',
+                            form_name: 'traders_hub_default',
+                            account_mode: selected_account_type,
+                            account_name: 'cfd_banner',
+                        });
                         if (is_real && eu_user) {
                             if (real_account_creation_unlock_date) {
                                 setShouldShowCooldownModal(true);
@@ -37,7 +43,7 @@ const AddOptions = () => {
                                 openRealAccountSignup('maltainvest');
                             }
                         } else {
-                            openRealAccountSignup();
+                            openRealAccountSignup('svg');
                         }
                     }}
                     is_disabled={false}
@@ -49,9 +55,9 @@ const AddOptions = () => {
             </div>
         </React.Fragment>
     );
-};
+});
 
-const AddOptionsAccount = () => {
+const AddOptionsAccount = observer(() => {
     return (
         <React.Fragment>
             <div className='add-options-account'>
@@ -64,6 +70,6 @@ const AddOptionsAccount = () => {
             </div>
         </React.Fragment>
     );
-};
+});
 
-export default observer(AddOptionsAccount);
+export default AddOptionsAccount;

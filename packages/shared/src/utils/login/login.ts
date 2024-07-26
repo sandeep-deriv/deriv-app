@@ -1,8 +1,8 @@
-import { deriv_urls } from '../url/constants';
 import { website_name } from '../config/app-config';
+import { domain_app_ids, getAppId } from '../config/config';
 import { CookieStorage, isStorageSupported, LocalStore } from '../storage/storage';
-import { getAppId, domain_app_ids } from '../config/config';
 import { getStaticUrl, urlForCurrentDomain } from '../url';
+import { deriv_urls } from '../url/constants';
 
 export const redirectToLogin = (is_logged_in: boolean, language: string, has_params = true, redirect_delay = 0) => {
     if (!is_logged_in && isStorageSupported(sessionStorage)) {
@@ -10,18 +10,14 @@ export const redirectToLogin = (is_logged_in: boolean, language: string, has_par
         const redirect_url = has_params ? window.location.href : `${l.protocol}//${l.host}${l.pathname}`;
         sessionStorage.setItem('redirect_url', redirect_url);
         setTimeout(() => {
-            window.location.href = loginUrl({ language });
+            const new_href = loginUrl({ language });
+            window.location.href = new_href;
         }, redirect_delay);
     }
 };
 
-type TRedirectToSignUp = {
-    is_appstore?: boolean;
-    is_deriv_crypto?: boolean;
-};
-
-export const redirectToSignUp = ({ is_appstore }: TRedirectToSignUp) => {
-    window.open(getStaticUrl('/signup/', { is_appstore }));
+export const redirectToSignUp = () => {
+    window.open(getStaticUrl('/signup/'));
 };
 
 type TLoginUrl = {

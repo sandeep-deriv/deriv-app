@@ -5,18 +5,23 @@ const TerserPlugin = require('terser-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 
-const is_release = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+const is_release =
+    process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging' || process.env.NODE_ENV === 'test';
 const is_publishing = process.env.NPM_PUBLISHING_MODE === '1';
 
-module.exports = function () {
+module.exports = function (env) {
+    const base = env && env.base && env.base !== true ? `/${env.base}/` : '/';
+
     return {
         entry: {
-            index: path.resolve(__dirname, 'src/components', 'app.jsx'),
+            index: path.resolve(__dirname, 'src/pages', 'index.tsx'),
         },
         mode: is_release ? 'production' : 'development',
         output: {
-            path: path.resolve(__dirname, 'lib'),
-            filename: 'index.js',
+            chunkFilename: 'p2p/js/p2p.[name].[contenthash].js',
+            path: path.resolve(__dirname, 'dist'),
+            publicPath: base,
+            filename: 'p2p/js/[name].js',
             libraryExport: 'default',
             library: '@deriv/p2p',
             libraryTarget: 'umd',
@@ -26,9 +31,12 @@ module.exports = function () {
                 Assets: path.resolve(__dirname, 'src/assets'),
                 Components: path.resolve(__dirname, 'src/components'),
                 Constants: path.resolve(__dirname, 'src/constants'),
-                Translations: path.resolve(__dirname, 'src/translations'),
-                Utils: path.resolve(__dirname, 'src/utils'),
+                Hooks: path.resolve(__dirname, 'src/hooks'),
+                Pages: path.resolve(__dirname, 'src/pages'),
                 Stores: path.resolve(__dirname, 'src/stores'),
+                Translations: path.resolve(__dirname, 'src/translations'),
+                Types: path.resolve(__dirname, 'src/types'),
+                Utils: path.resolve(__dirname, 'src/utils'),
                 ...publisher_utils.getLocalDerivPackageAliases(__dirname, is_publishing),
             },
             extensions: ['.js', '.jsx', '.ts', '.tsx'],
@@ -116,10 +124,37 @@ module.exports = function () {
             ],
         },
         plugins: [
-            ...(is_publishing ? [new MiniCssExtractPlugin({ filename: 'main.css' })] : []),
-            // ...(is_release ? [] : [ new BundleAnalyzerPlugin({ analyzerMode: 'static' }) ]),
+            ...(is_publishing
+                ? [
+                      new MiniCssExtractPlugin({
+                          filename: 'p2p/css/[name].css',
+                          chunkFilename: 'p2p/css/[name].[contenthash].css',
+                      }),
+                  ]
+                : []),
         ],
         optimization: {
+            splitChunks: {
+                chunks: 'async',
+                minSize: 20000,
+                minRemainingSize: 0,
+                minChunks: 1,
+                maxAsyncRequests: 30,
+                maxInitialRequests: 30,
+                maxSize: 2500000,
+                cacheGroups: {
+                    defaultVendors: {
+                        test: /[\\/]node_modules[\\/]/,
+                        priority: -10,
+                        reuseExistingChunk: true,
+                    },
+                    default: {
+                        minChunks: 2,
+                        priority: -20,
+                        reuseExistingChunk: true,
+                    },
+                },
+            },
             minimize: is_release,
             minimizer: is_release
                 ? [
@@ -131,12 +166,15 @@ module.exports = function () {
                   ]
                 : [],
         },
-        devtool: is_release ? undefined : 'eval-cheap-module-source-map',
+        devtool: is_release ? 'source-map' : 'eval-cheap-module-source-map',
         externals: [
             {
                 react: 'react',
                 'react-dom': 'react-dom',
+                'react-router': 'react-router',
+                'react-router-dom': 'react-router-dom',
                 'prop-types': 'prop-types',
+                '@deriv-com/analytics': '@deriv-com/analytics',
                 ...(is_publishing ? {} : { 'lodash.debounce': 'lodash.debounce', formik: 'formik' }),
                 ...publisher_utils.getLocalDerivPackageExternals(__dirname, is_publishing),
             },

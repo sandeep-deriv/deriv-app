@@ -3,14 +3,24 @@
     "private": true,
     "version": "1.0.0",
     "main": "src/index.ts",
+    "sideEffects": false,
     "dependencies": {
+        "@binary-com/binary-document-uploader": "^2.4.8",
+        "@deriv-com/analytics": "1.10.0",
         "@deriv/api": "^1.0.0",
         "@deriv/stores": "^1.0.0",
+        "@deriv/utils": "^1.0.0",
+        "@deriv/shared": "^1.0.0",
+        "usehooks-ts": "^2.7.0",
+        "react-i18next": "^11.11.0",
+        "@simplewebauthn/browser": "^8.3.4",
+        "@simplewebauthn/typescript-types": "^8.3.4",
         "react": "^17.0.2"
     },
     "devDependencies": {
         "typescript": "^4.6.3",
         "@testing-library/user-event": "^13.5.0",
-        "@testing-library/react": "^12.0.0"
+        "@testing-library/react": "^12.0.0",
+        "@testing-library/react-hooks": "^7.0.2"
     }
 }

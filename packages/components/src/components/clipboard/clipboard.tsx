@@ -12,9 +12,11 @@ type TClipboard = {
     info_message?: string;
     success_message?: string;
     className?: string;
+    onClickHandler?: VoidFunction;
     popoverClassName?: string;
     popoverAlignment?: 'top' | 'right' | 'bottom' | 'left';
     popover_props?: Partial<TPopoverProps>;
+    size?: string;
 };
 const Clipboard = ({
     text_copy,
@@ -22,9 +24,11 @@ const Clipboard = ({
     icon,
     success_message,
     className,
+    onClickHandler,
     popoverClassName,
     popover_props = {},
     popoverAlignment = 'bottom',
+    size = '16',
 }: TClipboard) => {
     const [is_copied, copyToClipboard, setIsCopied] = useCopyToClipboard();
     const isMounted = useIsMounted();
@@ -38,6 +42,7 @@ const Clipboard = ({
             }
         }, 2000);
         event.stopPropagation();
+        onClickHandler?.();
     };
 
     React.useEffect(() => {
@@ -49,22 +54,22 @@ const Clipboard = ({
             alignment={popoverAlignment}
             classNameBubble={classNames('dc-clipboard__popover', popoverClassName)}
             message={is_copied ? success_message : info_message}
-            relative_render
             {...popover_props}
+            zIndex='9999'
         >
-            {is_copied && (
+            {is_copied ? (
                 <Icon
                     icon='IcCheckmarkCircle'
                     custom_color='var(--status-success)'
                     className={classNames('dc-clipboard', className)}
                 />
-            )}
-            {!is_copied && (
+            ) : (
                 <Icon
                     icon={icon || 'IcClipboard'}
                     custom_color='var(--text-less-prominent)'
                     className={classNames('dc-clipboard', className)}
                     onClick={onClick}
+                    size={size}
                 />
             )}
         </Popover>

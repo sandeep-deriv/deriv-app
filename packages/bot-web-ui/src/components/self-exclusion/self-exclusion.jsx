@@ -1,15 +1,15 @@
 import React from 'react';
-import PropTypes from 'prop-types';
-import { Input, Button, Modal, MobileWrapper, Div100vhContainer, FadeWrapper, PageOverlay } from '@deriv/components';
-import { localize } from '@deriv/translations';
-import { Formik, Form, Field } from 'formik';
 import classNames from 'classnames';
-import { connect } from 'Stores/connect';
+import { Field, Form, Formik } from 'formik';
+import PropTypes from 'prop-types';
+import { Button, Div100vhContainer, FadeWrapper, Input, Modal, PageOverlay } from '@deriv/components';
+import { observer, useStore } from '@deriv/stores';
+import { localize } from '@deriv/translations';
+import { useDBotStore } from 'Stores/useDBotStore';
 
 const SelfExclusionForm = props => {
     const [max_losses_error, setMaxLossesError] = React.useState('');
     const {
-        is_mobile,
         is_onscreen_keyboard_active,
         is_logged_in,
         initial_values,
@@ -18,11 +18,11 @@ const SelfExclusionForm = props => {
         resetSelfExclusion,
         updateSelfExclusion,
         setRunLimit,
-        reality_check_is_visible,
+        is_mobile,
     } = props;
 
     React.useEffect(() => {
-        if (reality_check_is_visible || !is_logged_in) {
+        if (!is_logged_in) {
             resetSelfExclusion();
         }
     });
@@ -186,18 +186,36 @@ const SelfExclusionForm = props => {
     );
 };
 
-const SelfExclusion = props => {
-    const { is_restricted, resetSelfExclusion, is_mobile } = props;
+const SelfExclusion = observer(({ onRunButtonClick }) => {
+    const { self_exclusion } = useDBotStore();
+    const { ui, client } = useStore();
+    const { is_restricted, resetSelfExclusion, initial_values, api_max_losses, run_limit, setRunLimit } =
+        self_exclusion;
+    const { is_onscreen_keyboard_active, is_desktop } = ui;
+    const { is_logged_in, updateSelfExclusion, virtual_account_loginid } = client;
+
+    const self_exclusion_form_props = {
+        is_onscreen_keyboard_active,
+        is_logged_in,
+        initial_values,
+        api_max_losses,
+        onRunButtonClick,
+        resetSelfExclusion,
+        updateSelfExclusion,
+        setRunLimit,
+        virtual_account_loginid,
+        run_limit,
+        is_desktop,
+    };
+
     return (
         <>
-            {is_mobile ? (
+            {!is_desktop ? (
                 <FadeWrapper is_visible={is_restricted} className='limits__wrapper' keyname='limitis__wrapper'>
                     <PageOverlay header={localize('Limits')} onClickClose={resetSelfExclusion}>
-                        <MobileWrapper>
-                            <Div100vhContainer className='limits__wrapper--is-mobile'>
-                                <SelfExclusionForm {...props} />
-                            </Div100vhContainer>
-                        </MobileWrapper>
+                        <Div100vhContainer className='limits__wrapper--is-mobile'>
+                            <SelfExclusionForm {...self_exclusion_form_props} />
+                        </Div100vhContainer>
                     </PageOverlay>
                 </FadeWrapper>
             ) : (
@@ -210,39 +228,15 @@ const SelfExclusion = props => {
                     className='db-self-exclusion__modal'
                     title={localize('Limits')}
                 >
-                    <SelfExclusionForm {...props} />
+                    <SelfExclusionForm {...self_exclusion_form_props} />
                 </Modal>
             )}
         </>
     );
-};
+});
 
 SelfExclusion.propTypes = {
-    is_onscreen_keyboard_active: PropTypes.bool,
-    is_mobile: PropTypes.bool,
-    is_logged_in: PropTypes.bool,
-    is_restricted: PropTypes.bool,
-    initial_values: PropTypes.object,
-    api_max_losses: PropTypes.number,
-    run_limit: PropTypes.PropTypes.number,
-    resetSelfExclusion: PropTypes.func,
-    reality_check_is_visible: PropTypes.bool,
-    setRunLimit: PropTypes.func,
-    updateSelfExclusion: PropTypes.func,
-    virtual_account_loginid: PropTypes.string,
+    onRunButtonClick: PropTypes.func,
 };
 
-export default connect(({ client, self_exclusion, ui }) => ({
-    initial_values: self_exclusion.initial_values,
-    is_onscreen_keyboard_active: ui.is_onscreen_keyboard_active,
-    is_mobile: ui.is_mobile,
-    is_logged_in: client.is_logged_in,
-    is_restricted: self_exclusion.is_restricted,
-    api_max_losses: self_exclusion.api_max_losses,
-    run_limit: self_exclusion.run_limit,
-    resetSelfExclusion: self_exclusion.resetSelfExclusion,
-    reality_check_is_visible: client.is_reality_check_visible,
-    setRunLimit: self_exclusion.setRunLimit,
-    updateSelfExclusion: client.updateSelfExclusion,
-    virtual_account_loginid: client.virtual_account_loginid,
-}))(SelfExclusion);
+export default SelfExclusion;

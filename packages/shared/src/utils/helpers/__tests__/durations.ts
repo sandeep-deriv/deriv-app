@@ -102,6 +102,8 @@ describe('getExpiryType', () => {
     it('Return daily if expiry date is tomorrow', () => {
         store.expiry_date = moment().utc().add(1, 'days').toString();
         store.expiry_type = 'endtime';
+        store.expiry_type = 'duration';
+        store.duration_unit = 'd';
         expect(Duration.getExpiryType(store)).toEqual('daily');
     });
 
@@ -139,5 +141,22 @@ describe('convertDurationLimit', () => {
 
     it('Returns correct value for day unit', () => {
         expect(Duration.convertDurationLimit(86400, 'd')).toEqual(1);
+    });
+});
+
+describe('formatDurationTime', () => {
+    it('should return dummy duration if time was not passed', () => {
+        expect(Duration.formatDurationTime()).toBe('00:00');
+    });
+
+    it('should return dummy duration if time is equal to 0', () => {
+        expect(Duration.formatDurationTime(0)).toBe('00:00');
+    });
+
+    it('should return correct duration', () => {
+        expect(Duration.formatDurationTime(3)).toBe('00:03');
+        expect(Duration.formatDurationTime(33)).toBe('00:33');
+        expect(Duration.formatDurationTime(60)).toBe('01:00');
+        expect(Duration.formatDurationTime(130)).toBe('02:10');
     });
 });

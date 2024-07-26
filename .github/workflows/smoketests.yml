@@ -1,0 +1,58 @@
+name: Run Smoke Tests - Deriv app
+
+permissions:
+    actions: write
+    checks: write
+    contents: write
+    deployments: write
+    pull-requests: write
+    statuses: write
+
+on: 
+    issue_comment:
+        types: [edited]
+
+jobs:
+  trigger-workflow:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Capture Vercel preview URL
+      id: vercel_preview_url
+      uses: binary-com/vercel-preview-url-action@v1.0.5
+      with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+    - name: Set env vars
+      id: set-env-vars
+      run: |
+        labels=$(echo '${{ toJSON(github.event.issue.labels) }}' | jq -r '.[].name')
+        if echo "$labels" | grep -q "Bot"; then
+            echo "TEST_SUITE=dbot" >> $GITHUB_ENV
+        elif echo "$labels" | grep -q "P2P"; then
+            echo "TEST_SUITE=P2P" >> $GITHUB_ENV
+        elif echo "$labels" | grep -q "Wallets"; then
+            echo "TEST_SUITE=Wallets" >> $GITHUB_ENV
+        else
+            echo "TEST_SUITE=<do not run>" >> $GITHUB_ENV
+        fi
+        
+    - name: Trigger deriv-app smoke tests from regentmarkets
+      if: ${{ github.event.issue.draft == false && env.TEST_SUITE != '<do not run>' }}
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.E2E_WORKFLOW_TOKEN }}
+        script: |
+          const workflowInputs = {
+            environment: '${{ secrets.E2E_WORKFLOW_ENV }}',
+            suite: '${{ env.TEST_SUITE }}',
+            appRegUrl: '${{ steps.vercel_preview_url.outputs.vercel_preview_url }}',
+            issue_number: '${{ github.event.issue.number }}',
+            user_name: '${{ github.event.issue.user.login }}'
+            };
+          const response = await github.rest.actions.createWorkflowDispatch({
+            owner: 'regentmarkets',
+            repo: 'e2e-deriv-app',
+            workflow_id: 'E2E_Run_PR.yml',
+            ref: 'mark/pr-commit-v2',
+            inputs: workflowInputs
+          });

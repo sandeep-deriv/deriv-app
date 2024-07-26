@@ -7,15 +7,17 @@
             "Constants/*": ["./src/Constants/*"],
             "Components/*": ["./src/Components/*"],
             "Containers/*": ["./src/Containers/*"],
+            "Helpers/*": ["./src/Helpers/*"],
             "Modules/*": ["./src/Modules/*"],
             "Sass/*": ["./src/sass/*"],
             "Stores/*": ["./src/Stores/*"],
+            "Types/*": ["./src/types/*"],
             "Utils/*": ["./src/Utils/*"],
             "@deriv/*": ["../*/src"]
         },
         "outDir": "./dist",
         "baseUrl": "./"
     },
-    "include": ["src", "globals.d.ts", "../../utils.d.ts", "@deriv-stores.d.ts"],
+    "include": ["src", "globals.d.ts"],
     "exclude": ["**/__tests__/**/*"]
 }

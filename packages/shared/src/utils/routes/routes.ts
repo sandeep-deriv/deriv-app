@@ -1,7 +1,26 @@
 import { getUrlSmartTrader, getUrlBinaryBot } from '../url/helpers';
 
 export const routes = {
+    reset_password: '/',
     error404: '/404',
+    index: '/index',
+    redirect: '/redirect',
+    endpoint: '/endpoint',
+    complaints_policy: '/complaints-policy',
+    contract: '/contract/:contract_id',
+
+    // platforms
+    mt5: '/mt5',
+    dxtrade: '/derivx',
+    bot: '/bot',
+    trade: '/dtrader',
+    markets: '/dtrader/markets',
+    trader_positions: '/dtrader/positions',
+    trader_menu: '/dtrader/menu',
+    smarttrader: getUrlSmartTrader(),
+    binarybot: getUrlBinaryBot(),
+
+    // account
     account: '/account',
     trading_assessment: '/account/trading-assessment',
     languages: '/account/languages',
@@ -10,7 +29,9 @@ export const routes = {
     proof_of_identity: '/account/proof-of-identity',
     proof_of_address: '/account/proof-of-address',
     proof_of_ownership: '/account/proof-of-ownership',
+    proof_of_income: '/account/proof-of-income',
     passwords: '/account/passwords',
+    passkeys: '/account/passkeys',
     closing_account: '/account/closing-account',
     deactivate_account: '/account/deactivate-account', // TODO: Remove once mobile team has changed this link
     account_closed: '/account-closed',
@@ -20,47 +41,79 @@ export const routes = {
     login_history: '/account/login-history',
     two_factor_authentication: '/account/two-factor-authentication',
     self_exclusion: '/account/self-exclusion',
+
+    // settings
+    settings: '/settings',
     account_password: '/settings/account_password',
     apps: '/settings/apps',
     cashier_password: '/settings/cashier_password',
-    contract: '/contract/:contract_id',
     exclusion: '/settings/exclusion',
     financial: '/settings/financial',
     history: '/settings/history',
-    index: '/index',
     limits: '/settings/limits',
-    mt5: '/mt5',
-    dxtrade: '/derivx',
+    token: '/settings/token',
     personal: '/settings/personal',
+
+    // reports
+    reports: '/reports',
     positions: '/reports/positions',
     profit: '/reports/profit',
-    reports: '/reports',
-    root: '/',
-    reset_password: '/',
-    redirect: '/redirect',
-    settings: '/settings',
     statement: '/reports/statement',
-    token: '/settings/token',
-    trade: '/',
-    bot: '/bot',
+
+    // cashier
     cashier: '/cashier',
     cashier_deposit: '/cashier/deposit',
     cashier_withdrawal: '/cashier/withdrawal',
     cashier_pa: '/cashier/payment-agent',
     cashier_acc_transfer: '/cashier/account-transfer',
-    cashier_crypto_transactions: '/cashier/crypto-transactions',
+    cashier_transactions_crypto: '/cashier/crypto-transactions',
     // cashier_offramp: '/cashier/off-ramp',
     cashier_onramp: '/cashier/on-ramp',
     cashier_p2p: '/cashier/p2p',
-    cashier_p2p_verification: '/cashier/p2p/verification',
     cashier_pa_transfer: '/cashier/payment-agent-transfer',
-    smarttrader: getUrlSmartTrader(),
-    binarybot: getUrlBinaryBot(),
-    endpoint: '/endpoint',
-    complaints_policy: '/complaints-policy',
+
+    // P2P
+    p2p_verification: '/cashier/p2p/verification',
+    p2p_buy_sell: '/cashier/p2p/buy-sell',
+    p2p_orders: '/cashier/p2p/orders',
+    p2p_my_ads: '/cashier/p2p/my-ads',
+    p2p_my_profile: '/cashier/p2p/my-profile',
+    p2p_advertiser_page: '/cashier/p2p/advertiser',
 
     // Appstore
-    appstore: '/appstore',
-    traders_hub: '/appstore/traders-hub',
-    onboarding: '/appstore/onboarding',
+    old_traders_hub: '/appstore/traders-hub',
+    traders_hub: '/',
+    onboarding: '/onboarding',
+    compare_cfds: '/cfd-compare-acccounts',
+
+    // Wallets
+    wallets: '/wallet',
+    wallets_deposit: '/wallet/deposit',
+    wallets_withdrawal: '/wallet/withdrawal',
+    wallets_transfer: '/wallet/account-transfer',
+    wallets_transactions: '/wallet/transactions',
+    wallets_compare_accounts: '/compare-accounts',
+    wallets_on_ramp: '/wallet/on-ramp',
+    wallets_reset_balance: '/wallet/reset-balance',
+
+    // Cashier V2
+    cashier_v2: '/cashier-v2',
+};
+
+export const DISABLE_LANDSCAPE_BLOCKER_ROUTES = [
+    routes.trade,
+    routes.onboarding,
+    routes.compare_cfds,
+    routes.reports,
+    routes.bot,
+    routes.account,
+    routes.endpoint,
+    /** because contract route has dynamic id */
+    '/contract',
+];
+
+export const isDisabledLandscapeBlockerRoute = (path: string) => {
+    // can't use routes.traders_hub for the next check because all routes starts with '/'
+    if (path === routes.traders_hub) return true;
+    return DISABLE_LANDSCAPE_BLOCKER_ROUTES.some(route => path.startsWith(route));
 };

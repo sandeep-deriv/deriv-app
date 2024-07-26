@@ -19,7 +19,7 @@
     outline: 0;
     font-size: 1rem;
 
-    @include mobile {
+    @include mobile-screen {
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
@@ -40,6 +40,9 @@
         }
         &__bottom {
             width: 40vw; // TODO remove this when find a solution for fill-width inside flex.
+        }
+        &--vanilla {
+            width: auto;
         }
         &:hover {
             transform: none !important;
@@ -70,7 +73,7 @@
     }
 
     &__icon_wrapper {
-        @extend %inline-icon.white;
+        @extend %inline-icon-white;
         /* postcss-bem-linter: ignore */
         .color1-fill {
             fill: var(--text-colored-background);
@@ -79,7 +82,7 @@
         .color2-fill {
             fill: var(--text-colored-background);
         }
-        @include mobile {
+        @include mobile-screen {
             margin-right: 0.5rem;
         }
     }
@@ -90,7 +93,7 @@
         display: flex;
         flex-grow: 1;
         align-items: center;
-        padding-left: 10px;
+        padding-inline-start: 10px;
         height: 56px;
     }
     &__info--left {
@@ -100,13 +103,13 @@
         z-index: 2;
 
         .btn-purchase__text_wrapper {
-            margin-left: 24px;
+            margin-inline-start: 24px;
             position: absolute;
         }
     }
     &__info--right {
         width: 45%;
-        padding-right: 1rem;
+        padding-inline-end: 1rem;
         background-color: transparent;
         display: flex;
         justify-content: flex-end;
@@ -131,7 +134,7 @@
         transform: rotate(45deg);
         height: 100%;
         background: var(--purchase-main-1);
-        left: 80px;
+        inset-inline-start: 80px;
         position: absolute;
         top: 0;
         bottom: 0;
@@ -151,6 +154,9 @@
         transform: none;
     }
     &__shadow-wrapper {
+        @include rtl {
+            direction: rtl;
+        }
         position: relative;
 
         .btn-purchase__box-shadow {
@@ -204,7 +210,7 @@
             }
         }
 
-        @include mobile {
+        @include mobile-screen {
             background: var(--purchase-section-1);
             background: linear-gradient(
                 0deg,
@@ -239,6 +245,32 @@
             );
         }
     }
+
+    &--has-bottom-gradient {
+        @include mobile-screen {
+            &-1 {
+                background: var(--purchase-section-1);
+                background: linear-gradient(
+                    0deg,
+                    var(--purchase-section-1) 0%,
+                    var(--purchase-section-1) 15%,
+                    var(--purchase-main-1) 15%,
+                    var(--purchase-main-1) 100%
+                );
+            }
+            &-2 {
+                background: var(--purchase-section-2);
+                background: linear-gradient(
+                    0deg,
+                    var(--purchase-section-2) 0%,
+                    var(--purchase-section-2) 15%,
+                    var(--purchase-main-2) 15%,
+                    var(--purchase-main-2) 100%
+                );
+            }
+        }
+    }
+
     &--disabled,
     &[disabled] {
         cursor: default;
@@ -283,13 +315,14 @@
     &__shadow-wrapper:hover:after {
         opacity: 0;
     }
-    &--multiplier {
+    &--multiplier,
+    &--accumulator {
         .btn-purchase__info--left {
             width: 35%;
             flex: none;
         }
         .btn-purchase__effect-detail--arrow {
-            left: 40px;
+            inset-inline-start: 40px;
         }
         &.btn-purchase--swoosh {
             .btn-purchase {
@@ -314,13 +347,83 @@
             }
         }
         .trade-container__price-info {
-            @include mobile {
+            @include mobile-screen {
                 justify-content: center;
             }
         }
-        @include mobile {
+        @include mobile-screen {
             &-deal-cancel {
                 height: 64px;
+            }
+        }
+    }
+    &--accumulator {
+        .btn-purchase {
+            &__info {
+                &--left {
+                    width: 65%;
+                    padding-inline-start: 1.6rem;
+                }
+                &--right {
+                    width: 30%;
+                    padding-inline-end: 1.6rem;
+                }
+            }
+            &__effect-detail--arrow {
+                inset-inline-start: 11rem;
+            }
+        }
+        &.btn-purchase--swoosh {
+            .btn-purchase {
+                &__effect-detail {
+                    transform: scale3d(11, 1, 1);
+                    &--arrow {
+                        transform: translate3d(120px, 0, 0) rotate(45deg);
+                    }
+                }
+                &__type-wrapper {
+                    transform: translate3d(72px, 0, 0);
+                }
+            }
+        }
+        @include mobile-screen {
+            .btn-purchase {
+                &__bottom,
+                &__top {
+                    width: unset;
+                    gap: 0.3rem;
+                }
+                &__icon_wrapper {
+                    height: 1.6rem;
+                }
+            }
+        }
+    }
+    &--turbos {
+        .btn-purchase {
+            &__info--left {
+                width: 70%;
+            }
+            &__effect-detail {
+                &--arrow {
+                    inset-inline-start: 12rem;
+                }
+            }
+            @include mobile-screen {
+                &__top {
+                    align-items: center;
+                    width: auto;
+                }
+            }
+        }
+        &.btn-purchase--swoosh {
+            .btn-purchase {
+                &__effect-detail {
+                    transform: scale3d(15, 1, 1);
+                    &--arrow {
+                        transform: translate3d(12rem, 0, 0) rotate(45deg);
+                    }
+                }
             }
         }
     }

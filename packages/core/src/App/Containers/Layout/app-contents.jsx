@@ -1,45 +1,62 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
-import { withRouter } from 'react-router';
-import WS from 'Services/ws-methods';
-import { DesktopWrapper, MobileWrapper, ThemedScrollbars } from '@deriv/components';
-import { CookieStorage, isMobile, TRACKING_STATUS_KEY, PlatformContext, platforms, routes } from '@deriv/shared';
-import { connect } from 'Stores/connect';
+import { useLocation, withRouter } from 'react-router';
+import { Analytics } from '@deriv-com/analytics';
+import { ThemedScrollbars } from '@deriv/components';
+import { CookieStorage, TRACKING_STATUS_KEY, platforms, routes, WS } from '@deriv/shared';
+import { useStore, observer } from '@deriv/stores';
+import { useFeatureFlags } from '@deriv/hooks';
 import CookieBanner from '../../Components/Elements/CookieBanner/cookie-banner.jsx';
+import { useDevice } from '@deriv-com/ui';
 
 const tracking_status_cookie = new CookieStorage(TRACKING_STATUS_KEY);
 
-const AppContents = ({
-    children,
-    identifyEvent,
-    is_app_disabled,
-    is_cashier_visible,
-    is_dark_mode,
-    is_eu_country,
-    is_logged_in,
-    is_logging_in,
-    is_cfd_page,
-    is_positions_drawer_on,
-    is_route_modal_on,
-    notifyAppInstall,
-    platform,
-    pageView,
-    pushDataLayer,
-    setAppContentsScrollRef,
-}) => {
+const AppContents = observer(({ children }) => {
     const [show_cookie_banner, setShowCookieBanner] = React.useState(false);
     const [is_gtm_tracking, setIsGtmTracking] = React.useState(false);
-    const { is_appstore } = React.useContext(PlatformContext);
+    const {
+        client,
+        common: { platform },
+        gtm: { pushDataLayer },
+        ui,
+    } = useStore();
+    const { isDesktop, isMobile } = useDevice();
+
+    const { is_eu_country, is_logged_in, is_logging_in, has_any_real_account, is_landing_company_loaded } = client;
+    const {
+        is_app_disabled,
+        is_cashier_visible,
+        is_cfd_page,
+        is_positions_drawer_on,
+        is_route_modal_on,
+        notifyAppInstall,
+        setAppContentsScrollRef,
+        is_dark_mode_on: is_dark_mode,
+    } = ui;
+
+    const { is_dtrader_v2_enabled } = useFeatureFlags();
+    const { pathname } = useLocation();
+
+    const isDTraderV2 =
+        is_dtrader_v2_enabled && isMobile && (pathname.startsWith(routes.trade) || pathname.startsWith('/contract/'));
 
     const tracking_status = tracking_status_cookie.get(TRACKING_STATUS_KEY);
 
     const scroll_ref = React.useRef(null);
+    const child_ref = React.useRef(null);
+
+    const location = useLocation();
 
     React.useEffect(() => {
         if (scroll_ref.current) setAppContentsScrollRef(scroll_ref);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    React.useEffect(() => {
+        Analytics.pageView(window.location.href);
+        // react-hooks/exhaustive-deps
+    }, [window.location.href]);
 
     React.useEffect(() => {
         const allow_tracking = !is_eu_country || tracking_status === 'accepted';
@@ -57,9 +74,12 @@ const AppContents = ({
         }
     }, [tracking_status, is_logged_in, is_eu_country, is_logging_in]);
 
-    // rudderstack page view trigger
-    identifyEvent();
-    pageView();
+    React.useEffect(() => {
+        // Gets the reference of the child element and scrolls it to the top
+        if (child_ref.current) {
+            child_ref.current.scrollTop = 0;
+        }
+    }, [location?.pathname]);
 
     React.useEffect(() => {
         const handleInstallPrompt = e => {
@@ -93,26 +113,33 @@ const AppContents = ({
             className={classNames('app-contents', {
                 'app-contents--show-positions-drawer': is_positions_drawer_on,
                 'app-contents--is-disabled': is_app_disabled,
-                'app-contents--is-mobile': isMobile(),
+                'app-contents--is-mobile': isMobile,
                 'app-contents--is-route-modal': is_route_modal_on,
                 'app-contents--is-scrollable': is_cfd_page || is_cashier_visible,
-                'app-contents--is-dashboard': is_appstore,
                 'app-contents--is-hidden': platforms[platform],
                 'app-contents--is-onboarding': window.location.pathname === routes.onboarding,
+                'app-contents--is-dtrader-v2': isDTraderV2,
+                'app-contents--is-dtrader-v2--with-banner':
+                    isDTraderV2 && !has_any_real_account && pathname === routes.trade && is_landing_company_loaded,
             })}
             ref={scroll_ref}
         >
-            <MobileWrapper>{children}</MobileWrapper>
-            <DesktopWrapper>
-                {/* Calculate height of user screen and offset height of header and footer */}
-                {window.location.pathname === routes.onboarding ? (
-                    <ThemedScrollbars style={{ maxHeight: '', height: '100%' }}>{children}</ThemedScrollbars>
-                ) : (
-                    <ThemedScrollbars height='calc(100vh - 84px)' has_horizontal>
+            {isMobile && children}
+            {!isMobile &&
+                /* Calculate height of user screen and offset height of header and footer */
+                (window.location.pathname === routes.onboarding ? (
+                    <ThemedScrollbars style={{ maxHeight: '', height: '100%' }} refSetter={child_ref}>
                         {children}
                     </ThemedScrollbars>
-                )}
-            </DesktopWrapper>
+                ) : (
+                    <ThemedScrollbars
+                        height={isDesktop ? 'calc(100vh - 84px)' : undefined}
+                        has_horizontal
+                        refSetter={child_ref}
+                    >
+                        {children}
+                    </ThemedScrollbars>
+                ))}
             {show_cookie_banner && (
                 <CookieBanner
                     onAccept={onAccept}
@@ -123,44 +150,10 @@ const AppContents = ({
             )}
         </div>
     );
-};
+});
 
 AppContents.propTypes = {
     children: PropTypes.any,
-    is_app_disabled: PropTypes.bool,
-    is_cashier_visible: PropTypes.bool,
-    is_logged_in: PropTypes.bool,
-    is_cfd_page: PropTypes.bool,
-    is_positions_drawer_on: PropTypes.bool,
-    is_route_modal_on: PropTypes.bool,
-    is_dark_mode: PropTypes.bool,
-    is_eu_country: PropTypes.bool,
-    is_logging_in: PropTypes.bool,
-    identifyEvent: PropTypes.func,
-    pageView: PropTypes.func,
-    pushDataLayer: PropTypes.func,
-    notifyAppInstall: PropTypes.func,
-    platform: PropTypes.string,
-    setAppContentsScrollRef: PropTypes.func,
 };
 
-export default withRouter(
-    connect(({ client, common, gtm, rudderstack, ui }) => ({
-        is_eu_country: client.is_eu_country,
-        is_eu: client.is_eu,
-        is_logged_in: client.is_logged_in,
-        is_logging_in: client.is_logging_in,
-        pushDataLayer: gtm.pushDataLayer,
-        identifyEvent: rudderstack.identifyEvent,
-        pageView: rudderstack.pageView,
-        is_app_disabled: ui.is_app_disabled,
-        is_cashier_visible: ui.is_cashier_visible,
-        is_dark_mode: ui.is_dark_mode_on,
-        is_cfd_page: ui.is_cfd_page,
-        is_positions_drawer_on: ui.is_positions_drawer_on,
-        is_route_modal_on: ui.is_route_modal_on,
-        notifyAppInstall: ui.notifyAppInstall,
-        platform: common.platform,
-        setAppContentsScrollRef: ui.setAppContentsScrollRef,
-    }))(AppContents)
-);
+export default withRouter(AppContents);

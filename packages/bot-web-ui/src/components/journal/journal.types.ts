@@ -15,7 +15,7 @@ export type TFilterMessageValues = {
     className: string;
     date: string;
     extra: TExtraFilterMessage | TExtraJournal;
-    message: string;
+    message: string | ((value: () => void) => string);
     message_type: string;
     time: string;
     unique_id: string;
@@ -59,7 +59,6 @@ export type TJournalProps = {
     contract_stage: number;
     filtered_messages: TFilterMessageProps | [];
     is_drawer_open: boolean;
-    is_mobile: boolean;
     is_stop_button_visible: boolean;
     unfiltered_messages: TFilterMessageProps;
     checked_filters: TCheckedFilters;
@@ -75,7 +74,7 @@ export type TJournalItemProps = {
     measure: () => void;
 };
 
-export type TJournalItemExtra = TExtraFilterMessage & TExtraJournal & { sold_for: string };
+export type TJournalItemExtra = TExtraFilterMessage & TExtraJournal & { sold_for: string; current_currency?: string };
 
 export type TFormatMessageProps = {
     logType: string;

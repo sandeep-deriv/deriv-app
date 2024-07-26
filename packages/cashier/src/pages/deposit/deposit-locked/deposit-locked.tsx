@@ -6,19 +6,25 @@ import { routes, WS } from '@deriv/shared';
 import { useStore, observer } from '@deriv/stores';
 import CashierLocked from '../../../components/cashier-locked';
 
+type TItems = {
+    button_text?: string;
+    onClick: () => void;
+    status: string;
+    is_disabled?: boolean;
+    content: string | JSX.Element;
+};
+
 const DepositLocked = observer(() => {
-    const { client, modules } = useStore();
+    const { client } = useStore();
     const {
         account_status,
         is_financial_account,
         is_financial_information_incomplete,
         is_tnc_needed,
         is_trading_experience_incomplete,
-        standpoint,
+        is_virtual,
+        updateAccountStatus,
     } = client;
-    const { cashier } = modules;
-    const { deposit } = cashier;
-    const { onMountDeposit: onMount } = deposit;
 
     // handle authentication locked
     const identity = account_status?.authentication?.identity;
@@ -28,22 +34,20 @@ const DepositLocked = observer(() => {
     const is_poa_needed = needs_verification?.includes('document');
     const has_poi_submitted = identity?.status !== 'none';
     const has_poa_submitted = document?.status !== 'none';
-    const deposit_desc = standpoint.iom
-        ? localize(
-              'We were unable to verify your information automatically. To enable this function, you must complete the following:'
-          )
-        : localize('To enable this feature you must complete the following:');
     const history = useHistory();
 
     // handle TnC
     const acceptTnc = async () => {
         await WS.tncApproval();
         await WS.getSettings();
-        onMount();
+
+        if (!is_virtual && !account_status?.status?.includes('deposit_attempt')) {
+            await updateAccountStatus();
+        }
     };
 
     // handle all deposits lock status
-    const items = [
+    const items: TItems[] = [
         ...(is_poi_needed && has_poi_submitted
             ? [
                   {
@@ -68,7 +72,14 @@ const DepositLocked = observer(() => {
                       content: (
                           <Localize
                               i18n_default_text='Accept our updated <0>terms and conditions</0>'
-                              components={[<StaticUrl key={0} className='link' href='terms-and-conditions' />]}
+                              components={[
+                                  <StaticUrl
+                                      key={0}
+                                      className='link'
+                                      href='terms-and-conditions'
+                                      is_document={false}
+                                  />,
+                              ]}
                           />
                       ),
                       status: 'button-action',
@@ -97,7 +108,7 @@ const DepositLocked = observer(() => {
                     </Text>
 
                     <Text as='p' align='center' size='xs' className='cashier-locked__desc'>
-                        {deposit_desc}
+                        {localize('To enable this feature you must complete the following:')}
                     </Text>
                     <Checklist className='cashier-locked__checklist' items={items} />
                 </div>

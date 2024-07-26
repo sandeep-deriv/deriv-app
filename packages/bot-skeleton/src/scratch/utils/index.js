@@ -6,13 +6,68 @@ import { observer as globalObserver } from '../../utils/observer';
 import { removeLimitedBlocks } from '../../utils/workspace';
 import { saveWorkspaceToRecent } from '../../utils/local-storage';
 import DBotStore from '../dbot-store';
-import { log_types } from '../../constants/messages';
+import { LogTypes } from '../../constants/messages';
+import { error_message_map } from '../../utils/error-config';
+
+export const getSelectedTradeType = (workspace = Blockly.derivWorkspace) => {
+    const trade_type_block = workspace.getAllBlocks(true).find(block => block.type === 'trade_definition_tradetype');
+    const selected_trade_type = trade_type_block?.getFieldValue('TRADETYPE_LIST');
+    let mandatory_tradeoptions_block = 'trade_definition_tradeoptions';
+    if (selected_trade_type === 'multiplier') mandatory_tradeoptions_block = 'trade_definition_multiplier';
+    if (selected_trade_type === 'accumulator') mandatory_tradeoptions_block = 'trade_definition_accumulator';
+    return mandatory_tradeoptions_block;
+};
+
+export const matchTranslateAttribute = translateString => {
+    const match = translateString.match(/translate\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/);
+    if (match && match.length > 2) {
+        const x = parseFloat(match[1]);
+        const y = parseFloat(match[2]);
+        return { x, y };
+    }
+    return null; // Invalid or no match
+};
+
+export const extractTranslateValues = () => {
+    const transform_value = Blockly?.derivWorkspace?.trashcan?.svgGroup.getAttribute('transform');
+    const translate_xy = matchTranslateAttribute(transform_value);
+
+    if (!translate_xy) {
+        globalObserver.emit('Error', 'Invalid String');
+    }
+
+    return {
+        translate_X: translate_xy.x,
+        translate_Y: translate_xy.y,
+    };
+};
+
+export const validateErrorOnBlockDelete = () => {
+    // Get the bounding rectangle of the selected block
+    const { translate_X, translate_Y } = extractTranslateValues();
+    const blockRect = Blockly.getSelected()?.getSvgRoot().getBoundingClientRect();
+    const translate_offset = 200;
+    // Extract coordinates from the bounding rectangles
+    const blockX = blockRect?.left || 0;
+    const blockY = blockRect?.top || 0;
+    const mandatory_trade_option_block = getSelectedTradeType();
+    const required_block_types = [mandatory_trade_option_block, 'trade_definition', 'purchase', 'before_purchase'];
+    if (required_block_types?.includes(Blockly?.getSelected()?.type)) {
+        if (
+            blockY >= translate_Y - translate_offset &&
+            blockY <= translate_Y + translate_offset &&
+            blockX >= translate_X - translate_offset &&
+            blockX <= translate_X + translate_offset
+        ) {
+            globalObserver.emit('ui.log.error', error_message_map[Blockly?.getSelected()?.type]?.default);
+        }
+    }
+};
 
 export const updateWorkspaceName = () => {
-    const { save_modal } = DBotStore.instance;
-
-    const file_name = save_modal.bot_name ?? config.default_file_name;
-
+    if (!DBotStore?.instance) return;
+    const { load_modal } = DBotStore.instance;
+    const file_name = load_modal?.dashboard_strategies?.[0]?.name ?? config.default_file_name;
     if (document.title.indexOf('-') > -1) {
         const string_to_replace = document.title.substr(document.title.indexOf('-'));
         const new_document_title = document.title.replace(string_to_replace, `- ${file_name}`);
@@ -53,7 +108,9 @@ export const save = (filename = '@deriv/bot', collection = false, xmlDom) => {
     saveAs({ data, type: 'text/xml;charset=utf-8', filename: `${filename}.xml` });
 };
 
-export const load = ({
+const delayExecution = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+export const load = async ({
     block_string,
     drop_event,
     file_name,
@@ -62,102 +119,100 @@ export const load = ({
     workspace,
     showIncompatibleStrategyDialog,
 }) => {
-    const { startLoading, endLoading } = DBotStore.instance;
-    startLoading();
-
-    setTimeout(async () => {
-        const showInvalidStrategyError = () => {
-            endLoading();
-            const error_message = localize('XML file contains unsupported elements. Please check or modify file.');
-            globalObserver.emit('ui.log.error', error_message);
+    if (!DBotStore?.instance || !workspace) return;
+    const { setLoading } = DBotStore.instance;
+    setLoading(true);
+    // Delay execution to allow fully previewing previous strategy if users quickly switch between strategies.
+    await delayExecution(100);
+    const showInvalidStrategyError = () => {
+        setLoading(false);
+        const error_message = localize('XML file contains unsupported elements. Please check or modify file.');
+        globalObserver.emit('ui.log.error', error_message);
+        return {
+            error: error_message,
         };
+    };
 
-        // Check if XML can be parsed correctly.
-        try {
-            const xmlDoc = new DOMParser().parseFromString(block_string, 'application/xml');
+    // Check if XML can be parsed correctly.
+    try {
+        const xmlDoc = new DOMParser().parseFromString(block_string, 'application/xml');
+        if (xmlDoc.getElementsByTagName('parsererror').length) {
+            return showInvalidStrategyError();
+        }
+    } catch (e) {
+        return showInvalidStrategyError();
+    }
 
-            if (xmlDoc.getElementsByTagName('parsererror').length) {
-                return showInvalidStrategyError();
+    let xml;
+    // Check if XML can be parsed into a strategy.
+    try {
+        xml = Blockly.utils.xml.textToDom(block_string);
+    } catch (e) {
+        return showInvalidStrategyError();
+    }
+
+    const blockConversion = new BlockConversion();
+    xml = blockConversion.convertStrategy(xml, showIncompatibleStrategyDialog);
+    const blockly_xml = xml.querySelectorAll('block');
+
+    // Check if there are any blocks in this strategy.
+    if (!blockly_xml.length) {
+        return showInvalidStrategyError();
+    }
+
+    // Check if all block types in XML are allowed.
+    const has_invalid_blocks = Array.from(blockly_xml).some(block => {
+        const block_type = block.getAttribute('type');
+        return !Object.keys(Blockly.Blocks).includes(block_type);
+    });
+
+    if (has_invalid_blocks) {
+        return showInvalidStrategyError();
+    }
+
+    try {
+        const is_collection = xml.hasAttribute('collection') && xml.getAttribute('collection') === 'true';
+        const event_group = is_collection ? `load_collection${Date.now()}` : `dbot-load${Date.now()}`;
+
+        Blockly.Events.setGroup(event_group);
+        removeLimitedBlocks(
+            workspace,
+            Array.from(blockly_xml).map(xml_block => xml_block.getAttribute('type'))
+        );
+
+        if (is_collection) {
+            loadBlocks(xml, drop_event, event_group, workspace);
+        } else {
+            await loadWorkspace(xml, event_group, workspace);
+
+            const is_main_workspace = workspace === Blockly.derivWorkspace;
+            if (is_main_workspace) {
+                const { save_modal } = DBotStore.instance;
+
+                save_modal.updateBotName(file_name);
+                workspace.clearUndo();
+                workspace.current_strategy_id = strategy_id || Blockly.utils.idGenerator.genUid();
+                await saveWorkspaceToRecent(xml, from);
             }
-        } catch (e) {
-            return showInvalidStrategyError();
         }
 
-        let xml;
-
-        // Check if XML can be parsed into a strategy.
-        try {
-            xml = Blockly.Xml.textToDom(block_string);
-        } catch (e) {
-            return showInvalidStrategyError();
-        }
-
-        const blockConversion = new BlockConversion();
-        xml = blockConversion.convertStrategy(xml, showIncompatibleStrategyDialog);
-
-        const blockly_xml = xml.querySelectorAll('block');
-
-        // Check if there are any blocks in this strategy.
-        if (!blockly_xml.length) {
-            return showInvalidStrategyError();
-        }
-
-        // Check if all block types in XML are allowed.
-        const has_invalid_blocks = Array.from(blockly_xml).some(block => {
-            const block_type = block.getAttribute('type');
-            return !Object.keys(Blockly.Blocks).includes(block_type);
+        // Set user disabled state on all disabled blocks. This ensures we don't change the disabled
+        // state through code, which was implemented for user experience.
+        workspace.getAllBlocks().forEach(block => {
+            if (block.disabled) {
+                block.is_user_disabled_state = true;
+            }
         });
 
-        if (has_invalid_blocks) {
-            return showInvalidStrategyError();
+        if (workspace === Blockly.derivWorkspace) {
+            globalObserver.emit('ui.log.success', { log_type: LogTypes.LOAD_BLOCK });
         }
-
-        try {
-            const is_collection = xml.hasAttribute('collection') && xml.getAttribute('collection') === 'true';
-            const event_group = is_collection ? `load_collection${Date.now()}` : `dbot-load${Date.now()}`;
-
-            Blockly.Events.setGroup(event_group);
-            removeLimitedBlocks(
-                workspace,
-                Array.from(blockly_xml).map(xml_block => xml_block.getAttribute('type'))
-            );
-
-            if (is_collection) {
-                loadBlocks(xml, drop_event, event_group, workspace);
-            } else {
-                await loadWorkspace(xml, event_group, workspace);
-
-                const is_main_workspace = workspace === Blockly.derivWorkspace;
-                if (is_main_workspace) {
-                    const { save_modal } = DBotStore.instance;
-
-                    save_modal.updateBotName(file_name);
-                    workspace.clearUndo();
-                    workspace.current_strategy_id = strategy_id || Blockly.utils.genUid();
-                    await saveWorkspaceToRecent(xml, from);
-                }
-            }
-
-            // Set user disabled state on all disabled blocks. This ensures we don't change the disabled
-            // state through code, which was implemented for user experience.
-            workspace.getAllBlocks().forEach(block => {
-                if (block.disabled) {
-                    block.is_user_disabled_state = true;
-                }
-            });
-
-            if (workspace === Blockly.derivWorkspace) {
-                globalObserver.emit('ui.log.success', { log_type: log_types.LOAD_BLOCK });
-            }
-        } catch (e) {
-            console.error(e); // eslint-disable-line
-            return showInvalidStrategyError();
-        } finally {
-            endLoading();
-        }
-
-        return true;
-    }, 500);
+    } catch (e) {
+        console.error(e); // eslint-disable-line
+        return showInvalidStrategyError();
+    } finally {
+        setLoading(false);
+    }
 };
 
 export const loadBlocks = (xml, drop_event, event_group, workspace) => {
@@ -176,8 +231,8 @@ export const loadBlocks = (xml, drop_event, event_group, workspace) => {
 export const loadWorkspace = async (xml, event_group, workspace) => {
     Blockly.Events.setGroup(event_group);
     await workspace.asyncClear();
-
     Blockly.Xml.domToWorkspace(xml, workspace);
+    workspace.cleanUp();
 };
 
 const loadBlocksFromHeader = (xml_string, block) => {
@@ -186,7 +241,7 @@ const loadBlocksFromHeader = (xml_string, block) => {
         let xml;
 
         try {
-            xml = Blockly.Xml.textToDom(xml_string);
+            xml = Blockly.utils.xml.textToDom(xml_string);
         } catch (error) {
             return reject(localize('Unrecognized file format'));
         }
@@ -304,50 +359,114 @@ export const addDomAsBlock = (el_block, parent_block = null) => {
     return block;
 };
 
-export const hasAllRequiredBlocks = workspace => {
-    const blocks_in_workspace = workspace.getAllBlocks();
-    const trade_type_block = workspace.getAllBlocks(true).find(block => block.type === 'trade_definition_tradetype');
-    const selected_trade_type = trade_type_block.getFieldValue('TRADETYPE_LIST');
-    const mandatory_tradeoptions_block =
-        selected_trade_type === 'multiplier' ? 'trade_definition_multiplier' : 'trade_definition_tradeoptions';
-    const { mandatoryMainBlocks } = config;
-    const required_block_types = [mandatory_tradeoptions_block, ...mandatoryMainBlocks];
-    const all_block_types = blocks_in_workspace.map(block => block.type);
-    const has_all_required_blocks = required_block_types.every(block_type => all_block_types.includes(block_type));
+const getAllRequiredBlocks = (workspace, required_block_types) => {
+    return workspace.getAllBlocks().filter(block => {
+        if (required_block_types.includes(block.type)) {
+            return (
+                (block.childBlocks_.length === 0 && required_block_types.includes(block.category_)) ||
+                block.parentBlock_ === null
+            );
+        }
+    });
+};
 
-    return has_all_required_blocks;
+const getMissingBlocks = (workspace, required_block_types) => {
+    return required_block_types.filter(blockType => {
+        return !workspace.getAllBlocks().some(block => block.type === blockType);
+    });
+};
+
+const getDisabledBlocks = required_blocks_check => {
+    return required_blocks_check.filter(block => {
+        const hasDisabledChild =
+            block.childBlocks_ && block.childBlocks_.some(childBlock => childBlock.disabled === true);
+        return block.disabled === true || hasDisabledChild;
+    });
+};
+
+const throwNewErrorMessage = (error_blocks, key) => {
+    return error_blocks.forEach(block => {
+        if (key === 'misplaced' && block) globalObserver.emit('ui.log.error', error_message_map[block?.type]?.[key]);
+        else if (key === 'missing' && block) globalObserver.emit('ui.log.error', error_message_map[block]?.[key]);
+        else if (key === 'disabled' && block) {
+            let parent_block_error = false;
+            const parent_error_message = error_message_map[block.type]?.[key];
+            if (block.disabled && parent_error_message) {
+                globalObserver.emit('ui.log.error', parent_error_message);
+                parent_block_error = true;
+            } else if (!parent_block_error && block.childBlocks_) {
+                block.childBlocks_.forEach(childBlock => {
+                    const child_error_message = error_message_map[childBlock.type]?.[key];
+                    if (child_error_message) globalObserver.emit('ui.log.error', child_error_message);
+                });
+            }
+        }
+    });
 };
 
 export const isAllRequiredBlocksEnabled = workspace => {
-    const trade_type_block = workspace.getAllBlocks(true).find(block => block.type === 'trade_definition_tradetype');
-    const selected_trade_type = trade_type_block.getFieldValue('TRADETYPE_LIST');
-    const mandatory_tradeoptions_block =
-        selected_trade_type === 'multiplier' ? 'trade_definition_multiplier' : 'trade_definition_tradeoptions';
+    if (!workspace) return false;
+
+    const mandatory_trade_option_block = getSelectedTradeType(workspace);
     const { mandatoryMainBlocks } = config;
-    const required_block_types = [mandatory_tradeoptions_block, ...mandatoryMainBlocks];
+    const required_block_types = [mandatory_trade_option_block, ...mandatoryMainBlocks];
 
-    const enabled_blocks_types = workspace
-        .getAllBlocks()
-        .filter(block => !block.disabled)
-        .map(block => block.type);
+    const required_blocks_check = getAllRequiredBlocks(workspace, required_block_types);
 
-    return required_block_types.every(required_type => enabled_blocks_types.includes(required_type));
+    const missing_blocks = getMissingBlocks(workspace, required_block_types);
+    const disabled_blocks = getDisabledBlocks(required_blocks_check);
+
+    if (missing_blocks) throwNewErrorMessage(missing_blocks, 'missing');
+    if (disabled_blocks) throwNewErrorMessage(disabled_blocks, 'disabled');
+
+    const error_blocks = [...missing_blocks, ...disabled_blocks];
+    const blocks_required = error_blocks.length === 0;
+
+    return blocks_required;
 };
 
 export const scrollWorkspace = (workspace, scroll_amount, is_horizontal, is_chronological) => {
     const ws_metrics = workspace.getMetrics();
-
-    let scroll_x = ws_metrics.viewLeft - ws_metrics.contentLeft;
-    let scroll_y = ws_metrics.viewTop - ws_metrics.contentTop;
-
+    let scroll_x = ws_metrics.viewLeft - ws_metrics.scrollLeft;
+    const delta_y = ws_metrics.viewTop - ws_metrics.scrollTop;
+    let scroll_y = delta_y;
     if (is_horizontal) {
         scroll_x += is_chronological ? scroll_amount : -scroll_amount;
-        scroll_y += -20;
+        if (!DBotStore.instance.is_mobile) {
+            scroll_y += -20;
+        }
     } else {
         scroll_x += -20;
         scroll_y += is_chronological ? scroll_amount : -scroll_amount;
     }
+    const is_RTL = workspace.RTL;
+    if (is_RTL) {
+        // For RTL scroll we need to adjust the scroll amount
+        scroll_x = scroll_amount;
+        // Adjust scroll_y to prevent scrolling vertically on every render
+        const toolbox_top = document.getElementById('gtm-toolbox')?.getBoundingClientRect()?.top;
+        const block_canvas_rect_top = workspace.svgBlockCanvas_?.getBoundingClientRect()?.top;
+        if (block_canvas_rect_top > toolbox_top) {
+            scroll_y = delta_y;
+        }
 
+        /* NOTE: This was done for mobile view since 
+        when we try to calculate the scroll amount for RTL,
+        we need to realign the scroll to(0, 0) for the workspace.
+        Then, from the width of the canvas, we need to subtract the width of the block. 
+        To Make the block visible in the view width
+        */
+
+        if (window.innerWidth < 768) {
+            workspace.scrollbar.set(0, scroll_y);
+            const calc_scroll =
+                workspace.svgBlockCanvas_?.getBoundingClientRect().width -
+                workspace.svgBlockCanvas_?.getBoundingClientRect().left +
+                60;
+            workspace.scrollbar.set(calc_scroll, scroll_y);
+            return;
+        }
+    }
     workspace.scrollbar.set(scroll_x, scroll_y);
 };
 
@@ -375,11 +494,11 @@ export const runGroupedEvents = (use_existing_group, callbackFn, opt_group_name)
  */
 export const runIrreversibleEvents = callbackFn => {
     const { recordUndo } = Blockly.Events;
-    Blockly.Events.recordUndo = false;
+    Blockly.Events.setRecordUndo(false);
 
     callbackFn();
 
-    Blockly.Events.recordUndo = recordUndo;
+    Blockly.Events.setRecordUndo(recordUndo ?? true);
 };
 
 /**
@@ -394,7 +513,7 @@ export const runInvisibleEvents = callbackFn => {
 };
 
 export const updateDisabledBlocks = (workspace, event) => {
-    if (event.type === Blockly.Events.END_DRAG) {
+    if (event.type === Blockly.Events.BLOCK_DRAG && !event.isStart) {
         workspace.getAllBlocks().forEach(block => {
             if (!block.getParent() || block.is_user_disabled_state) {
                 return;
@@ -437,3 +556,100 @@ export const isDarkRgbColour = string_rgb => {
     return luma < 160;
 };
 /* eslint-enable */
+
+export const removeExtraInput = instance => {
+    const collapsed_input = instance.getInput('_TEMP_COLLAPSED_INPUT');
+    const procedures_array = ['procedures_defreturn', 'procedures_defnoreturn'];
+    if (collapsed_input && instance.collapsed_ && !collapsed_input.icon_added) {
+        collapsed_input.icon_added = true;
+        const dropdown_path = `${instance.workspace.options.pathToMedia}dropdown-arrow.svg`;
+        const field_expand_icon = new Blockly.FieldImage(dropdown_path, 16, 16, localize('Collapsed'), () =>
+            instance.setCollapsed(false)
+        );
+        const function_name = instance.getFieldValue('NAME');
+        const args = ` (${instance?.arguments?.join(', ')})`;
+
+        if (procedures_array.includes(instance.type)) {
+            collapsed_input
+                .appendField(new Blockly.FieldLabel(localize('function'), ''))
+                .appendField(new Blockly.FieldLabel(function_name + args, 'header__title'))
+                .appendField(field_expand_icon);
+        } else {
+            collapsed_input.appendField(field_expand_icon);
+        }
+
+        const remove_last_input = dummy_input => {
+            const tmp_array = dummy_input.fieldRow;
+
+            const value_input = procedures_array.includes(instance.type) ? 0 : 2;
+            if (!procedures_array.includes(instance.type)) {
+                tmp_array[0]?.setClass('blocklyTextRootBlockHeader');
+            }
+            tmp_array[value_input]?.setVisible(false);
+            tmp_array[value_input]?.forceRerender();
+        };
+        remove_last_input(collapsed_input);
+    }
+};
+
+const downloadBlock = () => {
+    const xml_block = Blockly?.getSelected()?.svgGroup_;
+    const xml_text = Blockly.Xml.domToPrettyText(xml_block);
+    saveAs({ data: xml_text, type: 'text/xml;charset=utf-8', filename: 'block.xml' });
+};
+
+const download_option = {
+    text: localize('Download Block'),
+    enabled: true,
+    callback: downloadBlock,
+};
+
+export const excludeOptionFromContextMenu = (menu, exclude_items) => {
+    if (exclude_items && exclude_items.length > 0) {
+        for (let i = menu.length - 1; i >= 0; i--) {
+            const menu_text = localize(menu[i].text);
+            if (exclude_items.includes(menu_text)) {
+                menu.splice(i, 1);
+            } else {
+                menu[i].text = menu_text;
+            }
+        }
+    }
+};
+
+const common_included_items = [download_option];
+
+const all_context_menu_options = [
+    localize('Duplicate'),
+    localize('Add Comment'),
+    localize('Remove Comment'),
+    localize('Collapse Block'),
+    localize('Expand Block'),
+    localize('Disable Block'),
+    localize('Enable Block'),
+    localize('Download Block'),
+];
+
+// Need for later
+// const deleteLocaleText = localize("Delete");
+// const blocksLocaleText = localize("Blocks");
+// const deleteBlocksLocaleText = localize("Delete Blocks");
+// const deleteBlocksLocalePattern = new RegExp(`^${deleteLocaleText} \\d+ ${blocksLocaleText}$`);
+
+export const modifyContextMenu = (menu, add_new_items = []) => {
+    const include_items = [...common_included_items, ...add_new_items];
+    include_items.forEach(item => {
+        menu.push({
+            text: item.text,
+            enabled: item.enabled,
+            callback: item.callback,
+        });
+    });
+
+    for (let i = 0; i < menu.length; i++) {
+        const localized_text = localize(menu[i].text);
+        if (all_context_menu_options.includes(localized_text)) {
+            menu[i].text = localized_text;
+        }
+    }
+};

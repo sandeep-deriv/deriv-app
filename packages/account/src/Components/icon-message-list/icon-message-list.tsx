@@ -1,55 +1,38 @@
 import React from 'react';
-import classNames from 'classnames';
-import { localize } from '@deriv/translations';
-import { Div100vhContainer, Text, Button, Icon, ThemedScrollbars } from '@deriv/components';
-import { isDesktop, isMobile } from '@deriv/shared';
+import clsx from 'clsx';
+import { Div100vhContainer, Text, Button, ThemedScrollbars, Icon } from '@deriv/components';
+import { getOnfidoError } from '@deriv/shared';
+import { Localize } from '@deriv/translations';
+import ListItem from './list-item';
+import { useDevice } from '@deriv-com/ui';
 
-type TListItem = {
-    text?: string;
-};
-
-type TMessage_list = {
-    message_list?: string[];
-};
-
-type TIconMessageList = TMessage_list & {
-    className: string;
+type TIconMessageList = {
+    className?: string;
     icon: React.ReactElement;
     message: string;
+    message_list: Array<string>;
     onContinue: () => void;
 };
 
-const ListItem = ({ text }: TListItem) => (
-    <div className='account-management__list-message'>
-        <div className='account-management__list-icon'>
-            <Icon icon='IcCloseCircle' color='red' />
-        </div>
-        <div className='account-management__list-text-container'>
-            <Text size='xs' className='account-management__list-text'>
-                {text}
-            </Text>
-        </div>
-    </div>
-);
+const IconMessageList = ({ className, icon, message, message_list = [], onContinue }: TIconMessageList) => {
+    const { isDesktop, isMobile } = useDevice();
 
-const IconMessageList = ({ className, icon, message, message_list = [], onContinue }: Partial<TIconMessageList>) => {
-    const has_maximum_list = message_list.length > 3;
     return (
-        <ThemedScrollbars is_bypassed={isMobile()}>
+        <ThemedScrollbars is_bypassed={isMobile}>
             <Div100vhContainer
                 className='account-management__message-wrapper'
-                is_disabled={isDesktop()}
+                is_disabled={isDesktop}
                 height_offset='110px'
             >
                 <div
-                    className={classNames('account-management__message-content', {
+                    className={clsx('account-management__message-content', {
                         [`${className}__message-content`]: className,
                     })}
                     data-testid='dt_icon_message_list'
                 >
                     {icon && (
                         <div
-                            className={classNames('account-management__message-icon', {
+                            className={clsx('account-management__message-icon', {
                                 [`${className}__message-icon`]: className,
                             })}
                         >
@@ -59,20 +42,34 @@ const IconMessageList = ({ className, icon, message, message_list = [], onContin
                     <Text
                         as='div'
                         weight='bold'
-                        className={classNames('account-management__message', {
+                        className={clsx('account-management__message', {
                             [`${className}__message`]: className,
                         })}
+                        size={isDesktop ? 's' : 'xs'}
                     >
                         {message}
                     </Text>
 
                     {message_list && (
                         <div className='account-management__list-container'>
-                            {has_maximum_list ? (
-                                <MaximumList message_list={message_list} />
-                            ) : (
-                                message_list.map((text, idx) => <ListItem key={idx} text={text} />)
-                            )}
+                            <div className='account-management__list-message'>
+                                <div className='account-management__list-icon'>
+                                    <Icon icon='IcAlertDanger' color='red' />
+                                </div>
+                                <section>
+                                    {message_list.length < 2 ? (
+                                        <ListItem text={getOnfidoError(message_list[0])} />
+                                    ) : (
+                                        message_list.map((text, idx) => (
+                                            <ListItem
+                                                key={text}
+                                                text={getOnfidoError(message_list[idx])}
+                                                index={idx + 1}
+                                            />
+                                        ))
+                                    )}
+                                </section>
+                            </div>
                         </div>
                     )}
                     {onContinue && (
@@ -81,48 +78,14 @@ const IconMessageList = ({ className, icon, message, message_list = [], onContin
                             className='account-management__continue'
                             onClick={onContinue}
                             large
-                            text={localize('Upload Document')}
                             primary
-                        />
+                        >
+                            <Localize i18n_default_text='Verify again' />
+                        </Button>
                     )}
                 </div>
             </Div100vhContainer>
         </ThemedScrollbars>
-    );
-};
-
-const MaximumList = ({ message_list }: TMessage_list) => {
-    const [show_more, setShowMore] = React.useState(false);
-    const maximum_list = message_list.slice(0, 3);
-
-    return show_more ? (
-        <React.Fragment>
-            {message_list.map((text, idx) => (
-                <ListItem key={idx} text={text} />
-            ))}
-            <Button
-                type='button'
-                className='account-management__list-button'
-                onClick={() => setShowMore(false)}
-                large
-                text={localize('Show less')}
-                tertiary
-            />
-        </React.Fragment>
-    ) : (
-        <React.Fragment>
-            {maximum_list.map((text, idx) => (
-                <ListItem key={idx} text={text} />
-            ))}
-            <Button
-                type='button'
-                className='account-management__list-button'
-                onClick={() => setShowMore(true)}
-                large
-                text={localize('Show more')}
-                tertiary
-            />
-        </React.Fragment>
     );
 };
 

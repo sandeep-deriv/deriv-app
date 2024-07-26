@@ -1,10 +1,10 @@
 .dc-contract-card {
     box-sizing: border-box;
+    border-radius: $BORDER_RADIUS;
     display: flex;
     flex-direction: column;
     text-decoration: none;
     position: relative;
-    border-radius: $BORDER_RADIUS;
     padding: 0.8rem;
     background-color: var(--general-main-1);
     color: var(--text-prominent);
@@ -13,11 +13,11 @@
     &:before {
         content: '';
         position: absolute;
+        border-radius: $BORDER_RADIUS;
         height: 52px;
         width: 100%;
         left: 0;
         top: 0;
-        border-radius: $BORDER_RADIUS;
     }
     &--green:before {
         background-image: linear-gradient(to top, rgba(16, 19, 32, 0), rgba(0, 148, 117, 0.16));
@@ -42,7 +42,21 @@
             width: 100%;
 
             &--trader {
-                grid-template-columns: 1.2fr 1fr;
+                @include desktop-screen {
+                    grid-template-columns: 1.2fr 1fr;
+                }
+
+                &--accumulator {
+                    grid-gap: 1px;
+
+                    @include desktop-screen {
+                        display: flex;
+                    }
+                }
+
+                &--sold {
+                    padding-top: 1rem;
+                }
             }
             &--mobile {
                 grid-template-columns: 1fr 1fr 25%;
@@ -102,7 +116,7 @@
         &:hover {
             background: 0 !important;
 
-            .dc-result__caption {
+            .dc-result__content {
                 opacity: 0;
             }
         }
@@ -201,6 +215,10 @@
         font-size: 1.2em;
         max-width: 18rem;
         min-width: 10rem;
+
+        &--accumulator {
+            max-width: 10rem;
+        }
     }
     &__type {
         font-size: 1.2em;
@@ -219,7 +237,14 @@
         }
     }
     &__symbol {
+        /*rtl:ignore*/
         margin-left: 0.4rem;
+        &--smarttrader-contract {
+            width: 7rem;
+            @include mobile {
+                width: initial;
+            }
+        }
     }
     &__header {
         display: flex;
@@ -270,6 +295,12 @@
             grid-gap: 0.8rem 0.4rem;
             flex: 1;
             padding: 0.4rem 0;
+
+            .dc-contract-card-items-wrapper-group {
+                .dc-contract-card-item:first-child {
+                    margin-bottom: 0.8rem;
+                }
+            }
         }
         &--has-progress-slider {
             grid-template-columns: 1fr 1fr 1fr;
@@ -286,6 +317,49 @@
                     order: unset !important;
                 }
             }
+        }
+    }
+    &--turbos,
+    &--lookbacks {
+        .dc-contract-card {
+            &-item {
+                &__body {
+                    @include mobile {
+                        padding-left: 0;
+                    }
+                }
+            }
+            &__buy-price {
+                grid-column: 1/1;
+                grid-row: 1/1;
+                padding: 0.8rem 0 0;
+            }
+            &__contract-value {
+                grid-column: 2/2;
+                grid-row: 1/2;
+                padding: 0.8rem 0 0;
+            }
+            &__entry-spot {
+                grid-column: 1/2;
+                grid-row: 2/2;
+            }
+            &__barrier-level {
+                grid-column: 1/1;
+                grid-row: 3/3;
+            }
+            &__limit-order-info {
+                grid-row: 2/2;
+                grid-column: 2/2;
+            }
+            &__status {
+                align-self: center;
+                justify-self: center;
+                grid-row: 1/3;
+                grid-column: 3/3;
+            }
+        }
+        @include mobile {
+            grid-template-columns: 1fr 1fr 1fr;
         }
     }
     &__profit-loss {
@@ -325,8 +399,11 @@
     }
     &-item {
         &__header {
-            max-width: calc(100% - 2.4rem);
+            max-width: calc(100% - 2rem);
             line-height: 1.4;
+            @include mobile {
+                max-width: unset;
+            }
         }
         &__body {
             @include typeface(--small-left-bold-black);
@@ -372,6 +449,7 @@
             @include mobile {
                 flex-direction: row;
                 justify-content: center;
+                grid-column: 1 / 4;
 
                 &-value {
                     margin-left: 0.2rem;
@@ -382,6 +460,22 @@
             &-value {
                 font-size: 1.4rem;
                 line-height: 2rem;
+            }
+        }
+        &__payout-limit {
+            padding: 0.8rem 0 0;
+            border-top: 1px solid var(--general-section-1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            .dc-contract-card-item__body {
+                align-self: center;
+            }
+        }
+        &__footer {
+            .lookbacks--note {
+                margin-top: 0.4rem;
             }
         }
     }
@@ -408,13 +502,15 @@
             transform: translateY(-8px);
         }
         &--has-cancel-btn {
-            justify-content: space-between;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
 
-            .dc-btn--cancel {
-                margin-left: 0.8rem;
-                max-width: 10.5rem;
+            .dc-btn {
+                /*rtl:ignore*/
+                padding: 0 0.5rem;
+
+                &--cancel {
+                    width: 100%;
+                }
             }
         }
         .dc-remaining-time {
@@ -440,10 +536,6 @@
         width: 16px;
         height: 16px;
 
-        &-complete,
-        &-complete:after {
-            display: none;
-        }
         &:after {
             content: '';
             width: 16px;
@@ -455,7 +547,8 @@
         align-items: center;
         justify-content: center;
 
-        .result-icon {
+        .result-icon,
+        &--accumulator-mobile-positions .dc-result__icon {
             margin-left: 0.4rem;
         }
     }
@@ -464,16 +557,24 @@
         display: grid;
         grid-gap: 0.4rem 0;
         position: relative;
-
         & .dc-contract-card__stop-loss {
             padding-bottom: 0.4rem;
         }
+    }
+    &__take-profit {
+        position: relative;
     }
     &__buy-price {
         grid-area: buy-price;
     }
     &__deal-cancel-fee {
         grid-area: deal-cancel-fee;
+        &__disabled {
+            color: var(--text-disabled-1);
+            .dc-contract-card-item__body {
+                color: inherit;
+            }
+        }
     }
     &__stake {
         grid-area: stake;
@@ -496,7 +597,7 @@
         }
     }
     &__no-resale-msg {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
     .contract-audit {
         &__wrapper {
@@ -549,9 +650,24 @@
     &__type-label {
         width: 3.8em;
         line-height: 1.5;
+        /*rtl:ignore*/
         text-align: left;
 
-        &-multiplier {
+        &--smarttrader-contract,
+        &--multipliers {
+            width: 7rem;
+            @include mobile {
+                width: 9rem;
+            }
+        }
+        &--lookbacks-contract {
+            width: 5rem;
+            @include mobile {
+                width: initial;
+            }
+        }
+
+        &-trade-param {
             font-size: 1rem;
             line-height: 1rem;
             color: var(--text-less-prominent);
@@ -569,4 +685,46 @@
 /** @define dc-remaining-time; weak */
 .dc-remaining-time {
     display: inline;
+}
+
+/** @define dc-tick-counter-bar; */
+.dc-tick-counter-bar {
+    &__container {
+        grid-column-start: 1;
+        grid-column-end: 3;
+        position: relative;
+        width: 100%;
+        padding: unset;
+        box-sizing: border-box;
+        margin: 0.8rem 0;
+        border-bottom: 1px solid var(--general-section-1);
+
+        @include mobile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-bottom: unset;
+            margin: unset;
+        }
+    }
+    &__track {
+        height: 1.8rem;
+        background: var(--general-section-1);
+        border-radius: #{$BORDER_RADIUS};
+        position: relative;
+        margin-bottom: 0.8rem;
+        width: 100%;
+
+        @include mobile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-bottom: unset;
+            margin: 0.2rem 0 0.4rem;
+        }
+    }
+    &__text {
+        position: absolute;
+        width: 100%;
+    }
 }

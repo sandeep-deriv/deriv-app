@@ -1,7 +1,7 @@
 import { localize } from '@deriv/translations';
 import { getCurrencyDisplayCode, getDecimalPlaces } from '@deriv/shared';
 import DBotStore from '../../../dbot-store';
-import { runGroupedEvents, runIrreversibleEvents } from '../../../utils';
+import { runGroupedEvents, runIrreversibleEvents, modifyContextMenu } from '../../../utils';
 import { config } from '../../../../constants/config';
 import ApiHelpers from '../../../../services/api/api-helpers';
 
@@ -55,6 +55,7 @@ Blockly.Blocks.trade_definition_multiplier = {
                     name: 'MULTIPLIER_PARAMS',
                 },
             ],
+            inputsInline: true,
             colour: Blockly.Colours.Special1.colour,
             colourSecondary: Blockly.Colours.Special1.colourSecondary,
             colourTertiary: Blockly.Colours.Special1.colourTertiary,
@@ -80,6 +81,20 @@ Blockly.Blocks.trade_definition_multiplier = {
             const block_types_in_multiplier = [];
             blocks_in_multiplier.forEach(block => {
                 block_types_in_multiplier.push(block.type);
+                const block_multiplier_take_profit = block.childValueToCode('multiplier_take_profit', 'AMOUNT');
+                const block_multiplier_stop_loss = block.childValueToCode('multiplier_stop_loss', 'AMOUNT');
+                if (block_multiplier_take_profit <= 0 || block_multiplier_stop_loss <= 0) {
+                    block.setDisabled(true);
+                }
+
+                if (block.type === 'multiplier_stop_loss' && block_multiplier_stop_loss > 0) {
+                    block.setDisabled(false);
+                }
+
+                if (block.type === 'multiplier_take_profit' && block_multiplier_take_profit > 0) {
+                    block.setDisabled(false);
+                }
+
                 if (
                     !/^multiplier_.+$/.test(block.type) ||
                     new Set(block_types_in_multiplier).size !== block_types_in_multiplier.length
@@ -92,7 +107,7 @@ Blockly.Blocks.trade_definition_multiplier = {
         }
     },
     onchange(event) {
-        if (!this.workspace || this.isInFlyout || this.workspace.isDragging()) {
+        if (!this.workspace || Blockly.derivWorkspace.isFlyoutVisible || this.workspace.isDragging()) {
             return;
         }
 
@@ -120,7 +135,6 @@ Blockly.Blocks.trade_definition_multiplier = {
 
         if (event.type === Blockly.Events.BLOCK_CREATE && event.ids.includes(this.id)) {
             this.setCurrency();
-            this.updateAmountLimits();
             if (is_load_event) {
                 // Do NOT touch any values when a strategy is being loaded.
                 this.updateMultiplierInput(false);
@@ -147,19 +161,17 @@ Blockly.Blocks.trade_definition_multiplier = {
                 }
             } else if (event.name === 'SYMBOL_LIST' || event.name === 'TRADETYPE_LIST') {
                 this.updateMultiplierInput(true);
-                this.updateAmountLimits();
             }
             return;
         }
 
-        if (event.type === Blockly.Events.END_DRAG) {
+        if (event.type === Blockly.Events.BLOCK_DRAG && !event.isStart) {
             this.setCurrency();
-            this.updateAmountLimits();
             this.validateBlocksInStatement();
             if (event.blockId === this.id) {
                 // Ensure this block is populated after initial drag from flyout.
                 if (!this.selected_multiplier) {
-                    const fake_creation_event = new Blockly.Events.Create(this);
+                    const fake_creation_event = new Blockly.Events.BlockCreate(this);
                     fake_creation_event.recordUndo = false;
                     Blockly.Events.fire(fake_creation_event);
                 } else if (this.selected_trade_type !== 'multiplier') {
@@ -168,7 +180,7 @@ Blockly.Blocks.trade_definition_multiplier = {
             }
         }
     },
-    updateAmountLimits: Blockly.Blocks.trade_definition_tradeoptions.updateAmountLimits,
+
     updateMultiplierInput(should_use_default_value) {
         const { contracts_for } = ApiHelpers.instance;
 
@@ -192,9 +204,15 @@ Blockly.Blocks.trade_definition_multiplier = {
         if (this.isDescendantOf('trade_definition')) {
             runIrreversibleEvents(() => {
                 runGroupedEvents(false, () => {
+                    const {
+                        workspaces: {
+                            indentWorkspace: { x, y },
+                        },
+                    } = config;
+
                     const duration_block = this.workspace.newBlock('trade_definition_tradeoptions');
                     duration_block.initSvg();
-                    duration_block.render();
+                    duration_block.renderEfficiently();
 
                     const trade_definition_block = this.workspace.getTradeDefinitionBlock();
                     const parent_connection = trade_definition_block.getInput('SUBMARKET').connection;
@@ -207,7 +225,7 @@ Blockly.Blocks.trade_definition_multiplier = {
                     duration_shadow_block.setShadow(true);
                     duration_shadow_block.outputConnection.connect(duration_input.connection);
                     duration_shadow_block.initSvg();
-                    duration_shadow_block.render(true);
+                    duration_shadow_block.renderEfficiently();
 
                     const stake_input = duration_block.getInput('AMOUNT');
 
@@ -216,13 +234,16 @@ Blockly.Blocks.trade_definition_multiplier = {
                     stake_shadow_block.setFieldValue(1, 'NUM');
                     stake_shadow_block.outputConnection.connect(stake_input.connection);
                     stake_shadow_block.initSvg();
-                    stake_shadow_block.render(true);
+                    stake_shadow_block.renderEfficiently();
 
                     this.dispose();
-                    Blockly.derivWorkspace.cleanUp();
+                    window.Blockly.getMainWorkspace().cleanUp(x, y);
                 });
             });
         }
+    },
+    customContextMenu(menu) {
+        modifyContextMenu(menu);
     },
     setCurrency: Blockly.Blocks.trade_definition_tradeoptions.setCurrency,
     restricted_parents: ['trade_definition'],
@@ -251,8 +272,13 @@ Blockly.Blocks.trade_definition_multiplier = {
     },
 };
 
-Blockly.JavaScript.trade_definition_multiplier = block => {
-    const amount = Blockly.JavaScript.valueToCode(block, 'AMOUNT', Blockly.JavaScript.ORDER_ATOMIC) || '0';
+Blockly.JavaScript.javascriptGenerator.forBlock.trade_definition_multiplier = block => {
+    const amount =
+        Blockly.JavaScript.javascriptGenerator.valueToCode(
+            block,
+            'AMOUNT',
+            Blockly.JavaScript.javascriptGenerator.ORDER_ATOMIC
+        ) || '0';
     const { currency } = DBotStore.instance.client;
     const { setContractUpdateConfig } = DBotStore.instance;
     const multiplier_value = block.getFieldValue('MULTIPLIERTYPE_LIST') || '1';
@@ -262,9 +288,10 @@ Blockly.JavaScript.trade_definition_multiplier = block => {
     const take_profit =
         !block.getChildByType('multiplier_take_profit')?.disabled &&
         block.childValueToCode('multiplier_take_profit', 'AMOUNT');
-    const limit_order = {};
-    limit_order.take_profit = take_profit ? +take_profit : undefined;
-    limit_order.stop_loss = stop_loss ? +stop_loss : undefined;
+    const limit_order = {
+        stop_loss: stop_loss ? `+(Number(${stop_loss}).toFixed(2))` : undefined,
+        take_profit: take_profit ? `+(Number(${take_profit}).toFixed(2))` : undefined,
+    };
 
     setContractUpdateConfig(take_profit, stop_loss);
     // Determine decimal places for rounding the stake, this is done so Martingale multipliers
@@ -280,6 +307,8 @@ Blockly.JavaScript.trade_definition_multiplier = block => {
             amount             : ${stake_amount},
             limit_order        : ${JSON.stringify(limit_order)},
             basis              : 'stake',
+            stop_loss          : ${limit_order.stop_loss},
+            take_profit        : ${limit_order.take_profit},
         });
         BinaryBotPrivateHasCalledTradeOptions = true;
     `;

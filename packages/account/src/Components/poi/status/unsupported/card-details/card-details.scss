@@ -1,11 +1,10 @@
 .manual-poi-details {
     margin: 0 -1rem;
-    max-width: 67.2rem;
     height: 100%;
     display: flex;
 
     &--mobile {
-        padding: 2.4rem 1.6rem;
+        padding: 2.4rem;
     }
 
     h3 {
@@ -15,28 +14,44 @@
         flex: 1;
         display: flex;
         flex-direction: column;
+
+        .account-form__footer {
+            max-width: 68rem;
+        }
+        @include mobile-or-tablet-screen {
+            .account-form__footer {
+                max-width: 100%;
+                align-items: center;
+            }
+        }
     }
     &__fields-content {
         flex: auto;
     }
     &__fields-wrap {
         display: flex;
-        margin-bottom: 0.7rem;
+        margin-bottom: 2rem;
 
         .manual-poi-details--mobile & {
             flex-wrap: wrap;
         }
-    }
-    &__field {
-        margin-bottom: 3.5rem;
 
-        &:first-of-type {
-            margin-right: 2.4rem;
+        .dc-datepicker {
+            margin-left: 2.4rem;
 
-            .manual-poi-details--mobile & {
-                margin-right: 0;
+            @include mobile-or-tablet-screen {
+                margin-left: unset;
             }
         }
+
+        @include mobile-or-tablet-screen {
+            .dc-input {
+                margin-bottom: 2rem;
+            }
+        }
+    }
+    &__field {
+        margin-bottom: 1.75rem;
     }
     &__divider {
         height: 2px;
@@ -50,7 +65,10 @@
     &__uploaders-wrap {
         display: flex;
         flex-wrap: wrap;
-        justify-content: space-between;
+
+        @include tablet-screen {
+            flex-wrap: nowrap;
+        }
 
         .dc-file-dropzone__message {
             width: 100%;
@@ -61,7 +79,7 @@
     &__uploader {
         position: relative;
         width: 100%;
-        max-width: 32.4rem;
+        max-width: 100%;
         height: 25rem;
         margin-bottom: 1.6rem;
 
@@ -146,6 +164,7 @@
         display: flex;
         flex-wrap: wrap;
         margin-bottom: 1.7rem;
+        justify-content: center;
     }
     &__icons-item {
         flex: 0.25;
@@ -174,16 +193,28 @@
         }
     }
     &__btns {
-        height: 15.2rem;
         flex: none;
-        border-top: 2px solid var(--general-section-1);
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        padding-bottom: 8rem;
 
         .dc-btn:not(:last-of-type) {
             margin-right: 0.8rem;
+        }
+
+        @include mobile-or-tablet-screen {
+            height: auto;
+            padding-bottom: unset;
+
+            .dc-btn {
+                width: 50%;
+            }
+        }
+        @include tablet-screen {
+            width: 56.8rem;
+        }
+        @include mobile-screen {
+            width: 100%;
         }
     }
 }

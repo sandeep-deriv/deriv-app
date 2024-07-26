@@ -1,9 +1,9 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Checklist } from '@deriv/components';
-import { StoreProvider } from '@deriv/stores';
 import DepositLocked from '../deposit-locked';
-import { TRootStore } from 'Types';
+import { mockStore } from '@deriv/stores';
+import CashierProviders from '../../../../cashier-providers';
 
 jest.mock('Components/cashier-locked', () => {
     const CashierLocked = () => (
@@ -20,7 +20,7 @@ jest.mock('Components/cashier-locked', () => {
 
 describe('<DepositLocked />', () => {
     it('should show the proof of identity document verification message', () => {
-        const mockRootStore: DeepPartial<TRootStore> = {
+        const mock_root_store = mockStore({
             client: {
                 account_status: {
                     cashier_validation: [],
@@ -34,17 +34,15 @@ describe('<DepositLocked />', () => {
                         needs_verification: ['identity'],
                     },
                 },
-                standpoint: { iom: undefined },
                 is_tnc_needed: false,
                 is_financial_information_incomplete: false,
                 is_trading_experience_incomplete: false,
                 is_financial_account: false,
             },
-            modules: { cashier: { deposit: { onMountDeposit: jest.fn() } } },
-        };
+        });
 
         render(<DepositLocked />, {
-            wrapper: ({ children }) => <StoreProvider store={mockRootStore as TRootStore}>{children}</StoreProvider>,
+            wrapper: ({ children }) => <CashierProviders store={mock_root_store}>{children}</CashierProviders>,
         });
 
         expect(screen.getByText('To enable this feature you must complete the following:')).toBeInTheDocument();
@@ -52,7 +50,7 @@ describe('<DepositLocked />', () => {
     });
 
     it('should show the proof of address document verification message', () => {
-        const mockRootStore: DeepPartial<TRootStore> = {
+        const mock_root_store = mockStore({
             client: {
                 account_status: {
                     cashier_validation: [],
@@ -66,17 +64,15 @@ describe('<DepositLocked />', () => {
                         needs_verification: ['document'],
                     },
                 },
-                standpoint: { iom: undefined },
                 is_tnc_needed: false,
                 is_financial_information_incomplete: false,
                 is_trading_experience_incomplete: false,
                 is_financial_account: false,
             },
-            modules: { cashier: { deposit: { onMountDeposit: jest.fn() } } },
-        };
+        });
 
         render(<DepositLocked />, {
-            wrapper: ({ children }) => <StoreProvider store={mockRootStore as TRootStore}>{children}</StoreProvider>,
+            wrapper: ({ children }) => <CashierProviders store={mock_root_store}>{children}</CashierProviders>,
         });
 
         expect(screen.getByText('To enable this feature you must complete the following:')).toBeInTheDocument();
@@ -84,23 +80,21 @@ describe('<DepositLocked />', () => {
     });
 
     it('should show the terms and conditions accept button', () => {
-        const mockRootStore: DeepPartial<TRootStore> = {
+        const mock_root_store = mockStore({
             client: {
                 account_status: {
                     cashier_validation: [],
                     authentication: {},
                 },
-                standpoint: { iom: undefined },
                 is_tnc_needed: true,
                 is_financial_information_incomplete: false,
                 is_trading_experience_incomplete: false,
                 is_financial_account: false,
             },
-            modules: { cashier: { deposit: { onMountDeposit: jest.fn() } } },
-        };
+        });
 
         render(<DepositLocked />, {
-            wrapper: ({ children }) => <StoreProvider store={mockRootStore as TRootStore}>{children}</StoreProvider>,
+            wrapper: ({ children }) => <CashierProviders store={mock_root_store}>{children}</CashierProviders>,
         });
 
         expect(screen.getByText('To enable this feature you must complete the following:')).toBeInTheDocument();
@@ -112,23 +106,21 @@ describe('<DepositLocked />', () => {
     });
 
     it('should show the financial assessment completion message', () => {
-        const mockRootStore: DeepPartial<TRootStore> = {
+        const mock_root_store = mockStore({
             client: {
                 account_status: {
                     cashier_validation: [],
                     authentication: {},
                 },
-                standpoint: { iom: 'true' },
                 is_tnc_needed: false,
                 is_financial_information_incomplete: true,
                 is_trading_experience_incomplete: false,
                 is_financial_account: false,
             },
-            modules: { cashier: { deposit: { onMountDeposit: jest.fn() } } },
-        };
+        });
 
         render(<DepositLocked />, {
-            wrapper: ({ children }) => <StoreProvider store={mockRootStore as TRootStore}>{children}</StoreProvider>,
+            wrapper: ({ children }) => <CashierProviders store={mock_root_store}>{children}</CashierProviders>,
         });
 
         expect(

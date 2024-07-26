@@ -2,8 +2,8 @@
     &_real-account-signup-modal {
         display: flex;
         flex-direction: column;
-        transition: all 0.3s ease-in-out;
-        @include tablet {
+        transition: none;
+        @include tablet-screen {
             max-height: calc(100vh - 10.2rem) !important; // Header and footer
         }
         background-color: var(--general-main-1);
@@ -27,8 +27,36 @@
                 flex-direction: column;
                 height: 100%;
                 width: 100%;
-                padding-top: 10rem;
+                padding-top: 3.6rem;
+
+                &__restricted-country-error {
+                    padding: 3.3rem 2.4rem 2.4rem;
+                    .dc-btn {
+                        margin-top: 1.9rem;
+                    }
+                }
+                &__invalid-input-error {
+                    margin: 2.4rem auto;
+                    padding-top: unset;
+                    .dc-btn {
+                        margin-top: 1.9rem;
+                    }
+                    .invalid_fields_input {
+                        display: list-item;
+                        margin: 0.5rem auto;
+                        list-style: disc;
+                        list-style-position: inside;
+                    }
+                }
+                &__cta {
+                    border-top: 1px solid var(--general-section-1);
+                    width: 100%;
+                    display: flex;
+                    justify-content: flex-end;
+                    padding: 1.6rem;
+                }
             }
+
             & > svg {
                 width: 12.8rem;
                 height: 12.8rem;
@@ -39,13 +67,12 @@
                 @include typeface(--title-center-bold-black);
                 text-transform: none;
                 color: var(--text-general);
-                margin: 1.6rem 0 0.8rem;
+                margin-top: 1.6rem;
             }
             p {
                 @include typeface(--paragraph-center-normal-prominent);
                 text-transform: none;
-                width: 80%;
-                margin-bottom: 2.4rem;
+                padding: 1.6rem;
             }
             a.dc-btn {
                 @include typeface(--paragraph-center-bold-black);
@@ -91,7 +118,7 @@
             border-top: none;
             padding: 2.4rem;
         }
-        @include mobile {
+        @include mobile-or-tablet-screen {
             width: 30rem !important;
         }
     }
@@ -102,6 +129,10 @@
             }
             &-body {
                 text-align: center;
+                padding: 2.4rem 2.4rem 0rem;
+                @include mobile-or-tablet-screen {
+                    padding: 1.6rem 1.6rem 0rem;
+                }
                 .risk-acceptance__text {
                     margin-top: 2.4rem;
                 }
@@ -136,8 +167,21 @@
             font-weight: bold;
             text-decoration: none;
             cursor: pointer;
-            display: block;
+            display: inline;
             text-align: center;
+        }
+
+        &__cta {
+            position: absolute;
+            bottom: 0;
+            border-top: 1px solid var(--general-section-1);
+            width: 100%;
+            display: flex;
+            padding: 1.6rem;
+
+            .dc-btn {
+                width: 100%;
+            }
         }
     }
 }
@@ -152,7 +196,8 @@
     height: calc(100% - 5.7rem);
     position: relative;
     width: 100%;
-    @include desktop {
+    @include desktop-screen {
+        transform: translateY(0);
         &--deriv-crypto {
             grid-template-rows: 0 !important;
         }
@@ -169,8 +214,8 @@
             z-index: 1;
         }
     }
-    @include mobile {
-        grid-template-rows: 5rem minmax(10rem, 1fr);
+    @include mobile-or-tablet-screen {
+        grid-template-rows: 1fr auto;
         overflow: hidden;
 
         &--set-currency {
@@ -184,12 +229,12 @@
         & .dc-form-submit-button {
             padding: 2rem;
         }
-        @include desktop {
+        @include desktop-screen {
             & form {
                 grid-template-rows: auto;
             }
         }
-        @include mobile {
+        @include mobile-or-tablet-screen {
             grid-template-rows: 1fr 1fr;
             overflow-y: auto;
             overflow-x: hidden;
@@ -200,7 +245,7 @@
         margin-top: 2.4rem;
         @include typeface(--title-center-bold-black);
         color: var(--text-less-prominent);
-        @include mobile {
+        @include mobile-or-tablet-screen {
             margin-top: 0.8rem;
             font-size: 1.2rem;
         }
@@ -238,13 +283,23 @@
             &__description {
                 margin-top: 2.4rem;
                 @include typeface(--paragraph-center-normal-prominent);
-                @include mobile {
+                @include mobile-or-tablet-screen {
+                    width: 100%;
+                    padding: 1.6rem;
                     text-align: center;
+                }
+                &--info {
+                    display: flex;
+                    background-color: var(--transparent-info);
+                    border-radius: $BORDER_RADIUS;
+                    padding: 0.8rem;
+                    gap: 0.8rem;
+                    align-items: center;
                 }
             }
             &__container {
                 width: 100%;
-                @include mobile {
+                @include mobile-or-tablet-screen {
                     overflow-x: hidden;
                     overflow-y: auto;
 
@@ -256,7 +311,7 @@
             &__button {
                 margin-top: 1.6rem;
             }
-            @include mobile {
+            @include mobile-or-tablet-screen {
                 &--deriv-account {
                     border-top: 2px solid var(--general-section-1);
                     padding-top: 1rem;
@@ -273,7 +328,7 @@
         display: flex;
 
         & .details-form {
-            @include tablet {
+            @include tablet-screen {
                 grid-template-rows: minmax(10rem, 1fr);
             }
         }
@@ -285,14 +340,14 @@
             text-transform: initial;
             color: var(--text-prominent);
 
-            @include mobile {
+            @include mobile-or-tablet-screen {
                 font-size: 1.2rem;
                 margin: 2.4rem auto 0 2.4rem;
                 text-align: left;
             }
         }
         h2 {
-            @include mobile {
+            @include mobile-or-tablet-screen {
                 font-size: 1.2rem;
                 text-align: left;
                 margin-left: 2.4rem;
@@ -344,15 +399,36 @@
             }
         }
     }
-    @include mobile {
+    @include mobile-or-tablet-screen {
         &--error {
             margin-top: $MOBILE_HEADER_HEIGHT;
             display: flex;
             flex-direction: column;
             align-items: center;
 
+            &__restricted-country-error,
+            &__invalid-input-error {
+                margin: auto 2.4rem;
+                height: calc(100vh - 84px);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 0.8rem;
+
+                .dc-btn {
+                    margin-top: 1.9rem;
+                    width: 100%;
+                }
+                .invalid_fields_input {
+                    display: list-item;
+                    margin: 0.5rem auto;
+                    list-style: disc;
+                    list-style-position: inside;
+                }
+            }
+
             h1 {
-                font-size: 2.4rem;
+                font-size: 1.8rem;
                 text-align: center;
                 font-weight: bold;
                 line-height: 1.5;
@@ -405,7 +481,7 @@
         width: 100%;
     }
 
-    @include mobile {
+    @include mobile-or-tablet-screen {
         .dc-form-submit-button {
             position: fixed;
             bottom: 0;
@@ -447,7 +523,7 @@
             height: 100%;
             width: 100%;
             margin-top: 0.3rem;
-            @include mobile {
+            @include mobile-or-tablet-screen {
                 border-top-color: var(--general-disabled);
             }
         }
@@ -490,24 +566,20 @@
         align-items: flex-start;
     }
 
-    @include mobile() {
+    @include mobile-or-tablet-screen {
         height: calc(100vh - 16rem);
         overflow: auto;
     }
 
     &--existing-user {
-        @include desktop() {
+        @include desktop-screen {
             margin-top: 9.2rem;
         }
 
-        @include mobile() {
+        @include mobile-or-tablet-screen {
             height: calc(100vh - 12rem);
             .trading-assessment__side-note {
                 padding: 2.2rem 1.6rem;
-            }
-
-            .trading-assessment__header {
-                margin-top: unset;
             }
         }
     }
@@ -518,45 +590,24 @@
 
     &__side-note {
         text-align: justify;
-        padding: 0 7rem;
+        padding: 0 10rem;
 
-        @include mobile() {
+        @include mobile-or-tablet-screen {
             padding: 0 1.6rem;
         }
     }
 
-    &__header {
-        margin-top: 2.4rem;
-        padding: 0 7rem;
+    &__question-counter {
+        margin: 2.4rem 0 0;
+        padding-left: 12rem;
 
-        @include mobile() {
-            padding: 0 1.6rem;
-        }
-        position: relative;
-        &--background {
-            background-color: var(--general-active);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        &--arrow-down {
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 16px solid var(--general-active);
-            position: relative;
-            left: 49%;
-        }
-
-        &--content_position {
-            justify-content: center !important;
+        @include mobile-or-tablet-screen {
+            padding-left: 1.6rem;
         }
     }
 
     &__form {
-        margin-top: 2.2rem;
+        margin-top: 1.6rem;
         display: grid;
         grid-template-rows: 4.7fr 1fr;
 
@@ -570,9 +621,9 @@
 
         &--fields {
             display: flex;
-            justify-content: center;
-            padding: 0 7rem;
-            @include mobile() {
+            padding: 0 10rem;
+
+            @include mobile-or-tablet-screen {
                 padding: 0 1.6rem;
             }
         }
@@ -582,9 +633,9 @@
         }
 
         .dc-dropdown__display .dc-dropdown__display-placeholder-text-limit-fit {
-            max-width: unset;
+            max-width: initial;
             padding-bottom: 0.5rem;
-            @include mobile() {
+            @include mobile-or-tablet-screen {
                 width: 90%;
                 white-space: normal;
             }
@@ -592,10 +643,18 @@
     }
 
     &__wrapper__question {
+        .dc-field--error {
+            padding-left: 0;
+            margin: 1.6rem 0;
+        }
+
+        @include desktop-screen {
+            padding: 0 2rem;
+        }
         .dc-radio-group {
             gap: 1.6rem;
         }
-        @include mobile() {
+        @include mobile-or-tablet-screen {
             .dc-radio-group__circle {
                 align-self: flex-start !important;
             }
@@ -607,28 +666,16 @@
         display: flex;
         flex-direction: column;
         width: 100%;
+        @include desktop-screen {
+            padding: 0 3rem;
+        }
     }
 
     .disable-pointer {
         cursor: not-allowed;
     }
 
-    .highlight {
-        animation: bounce 2s ease infinite;
-    }
-    @keyframes bounce {
-        0% {
-            transform: scale(1);
-        }
-        50% {
-            transform: scale(2);
-        }
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    @include mobile() {
+    @include mobile-or-tablet-screen {
         .dc-dropdown__display-placeholder {
             width: 100%;
             .trading-assessment__form .dc-dropdown__display .dc-dropdown__display-placeholder-text-limit-fit {
@@ -653,8 +700,8 @@
     }
 
     &__btn-group {
-        @include mobile() {
-            position: absolute;
+        @include mobile-or-tablet-screen {
+            position: fixed;
             bottom: 0;
             padding: 1.6rem;
             border-top: 2px solid var(--general-disabled);
@@ -695,6 +742,88 @@
             .dc-btn {
                 width: 100%;
             }
+        }
+    }
+}
+
+.field-layout {
+    .trading-assessment__wrapper__dropdown {
+        div:last-child {
+            .dc-dropdown__display-placeholder {
+                padding-right: 1rem;
+            }
+
+            .dc-dropdown__display .dc-dropdown__display-placeholder-text-limit-fit {
+                @include desktop-screen {
+                    white-space: inherit;
+                    text-overflow: unset;
+                }
+            }
+        }
+    }
+
+    .trading-frequency--field {
+        height: 5rem;
+    }
+}
+
+.risk-tolerance-modal {
+    &__title {
+        margin-bottom: 3.7rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+
+        &--separator {
+            border-top: 2px solid var(--general-section-5);
+            width: 50%;
+        }
+    }
+    &__wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2.4rem;
+    }
+    &__footer {
+        display: flex;
+        justify-content: center;
+    }
+}
+
+.personal-details-form,
+.address-details-form {
+    width: 100%;
+    @include desktop-screen {
+        padding: 0 16rem;
+    }
+}
+
+.personal-details-form {
+    .dc-radio-group__input {
+        width: 0;
+        height: 0;
+    }
+    @include desktop-screen {
+        padding-bottom: unset;
+    }
+}
+
+.wizard__main-step {
+    .account-form {
+        &__fieldset {
+            width: 100%;
+            max-width: unset !important;
+        }
+    }
+    .details-form__elements {
+        width: 100%;
+    }
+    .financial-assessment__form {
+        width: 70%;
+        @include mobile-or-tablet-screen {
+            width: 100%;
         }
     }
 }
